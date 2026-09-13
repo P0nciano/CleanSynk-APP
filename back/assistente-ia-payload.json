@@ -1,0 +1,34 @@
+{
+  "ocorrencias": [
+    {
+      "titulo": "Máquina 03 parada",
+      "descricao": "A máquina não está centrifugando e há clientes aguardando para finalizar os serviços.",
+      "categoria": "máquina",
+      "impacto": "alto",
+      "setor": "lavagem",
+      "tempoParadoHoras": 6,
+      "envolveCliente": true,
+      "qtdAfetados": 8
+    },
+    {
+      "titulo": "Falta de sabão em pó",
+      "descricao": "O estoque de sabão em pó acabou antes do horário de pico.",
+      "categoria": "insumo",
+      "impacto": "médio",
+      "setor": "estoque",
+      "tempoParadoHoras": 1,
+      "envolveCliente": false,
+      "qtdAfetados": 3
+    },
+    {
+      "titulo": "Reclamação sobre atraso na entrega",
+      "descricao": "Cliente relatou atraso na devolução das peças e insatisfação com o atendimento.",
+      "categoria": "cliente",
+      "impacto": "médio",
+      "setor": "atendimento",
+      "tempoParadoHoras": 0,
+      "envolveCliente": true,
+      "qtdAfetados": 1
+    }
+  ]
+}

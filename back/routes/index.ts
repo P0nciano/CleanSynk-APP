@@ -1,0 +1,12 @@
+export { default as adminLoginRoutes } from "./adminLogin";
+export { default as adminsRoutes } from "./admins";
+export { default as loginRoutes } from "./login";
+export { notificacaoRoutes } from "./notificacaoRoutes";
+export { reservaRoutes } from "./reservaRoutes";
+export { usuariosRoutes } from "./usuarios";
+export { lavanderiasRoutes } from "./lavanderias";
+export { maquinasRoutes } from "./maquinas";
+export { precosRoutes } from "./precos";
+export { pagamentosRoutes } from "./pagamentos";
+export { relatoriosRoutes } from "./relatorios";
+export { assistenteAIRoutes } from "./assistenteIA";

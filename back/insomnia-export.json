@@ -1,0 +1,1088 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-05-30T00:00:00.000Z",
+  "__export_source": "copilot-generated",
+  "resources": [
+    {
+      "_id": "wrk_cleansynk_api",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "CleanSynk API",
+      "description": "Colecao de testes para a API CleanSynk"
+    },
+    {
+      "_id": "env_cleansynk_api",
+      "_type": "environment",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Base Environment",
+      "data": {
+        "baseUrl": "http://localhost:3000",
+        "token": "",
+        "adminToken": ""
+      }
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Auth"
+    },
+    {
+      "_id": "req_health",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "GET Health",
+      "method": "GET",
+      "url": "http://localhost:3000/health",
+      "headers": [],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_login_user",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "POST Login User",
+      "method": "POST",
+      "url": "http://localhost:3000/login",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"user@teste.com\",\n  \"senha\": \"123456\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_login_admin",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "POST Login Admin",
+      "method": "POST",
+      "url": "http://localhost:3000/admin-auth/admin/login",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"admin@teste.com\",\n  \"password\": \"123456\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "fld_usuarios",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Usuarios"
+    },
+    {
+      "_id": "req_create_usuario",
+      "_type": "request",
+      "parentId": "fld_usuarios",
+      "name": "POST Criar Usuario",
+      "method": "POST",
+      "url": "http://localhost:3000/usuarios",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Joao Silva\",\n  \"email\": \"joao@teste.com\",\n  \"senha\": \"123456\",\n  \"tipo\": \"USER\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_list_usuarios",
+      "_type": "request",
+      "parentId": "fld_usuarios",
+      "name": "GET Listar Usuarios",
+      "method": "GET",
+      "url": "http://localhost:3000/usuarios",
+      "headers": [],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_get_usuario",
+      "_type": "request",
+      "parentId": "fld_usuarios",
+      "name": "GET Usuario por ID",
+      "method": "GET",
+      "url": "http://localhost:3000/usuarios/1",
+      "headers": [],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_update_usuario",
+      "_type": "request",
+      "parentId": "fld_usuarios",
+      "name": "PATCH Atualizar Perfil",
+      "method": "PATCH",
+      "url": "http://localhost:3000/usuarios/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Joao Atualizado\",\n  \"email\": \"joao.novo@teste.com\",\n  \"senha\": \"12345678\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "fld_lavanderias",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Lavanderias"
+    },
+    {
+      "_id": "req_list_lavanderias",
+      "_type": "request",
+      "parentId": "fld_lavanderias",
+      "name": "GET Listar Lavanderias",
+      "method": "GET",
+      "url": "http://localhost:3000/lavanderias",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_nearby_lavanderias",
+      "_type": "request",
+      "parentId": "fld_lavanderias",
+      "name": "GET Lavanderias Proximas",
+      "method": "GET",
+      "url": "http://localhost:3000/lavanderias/proximas?latitude=-23.55052&longitude=-46.633308&raioKm=5",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_get_lavanderia",
+      "_type": "request",
+      "parentId": "fld_lavanderias",
+      "name": "GET Lavanderia por ID",
+      "method": "GET",
+      "url": "http://localhost:3000/lavanderias/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_create_lavanderia",
+      "_type": "request",
+      "parentId": "fld_lavanderias",
+      "name": "POST Criar Lavanderia",
+      "method": "POST",
+      "url": "http://localhost:3000/lavanderias",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Lavanderia Centro\",\n  \"endereco\": \"Rua Exemplo, 123\",\n  \"latitude\": -23.55052,\n  \"longitude\": -46.633308,\n  \"proprietario_id\": 2\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "fld_maquinas",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Maquinas"
+    },
+    {
+      "_id": "req_list_maquinas",
+      "_type": "request",
+      "parentId": "fld_maquinas",
+      "name": "GET Listar Maquinas",
+      "method": "GET",
+      "url": "http://localhost:3000/maquinas",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_maquinas_by_lavanderia",
+      "_type": "request",
+      "name": "GET Maquinas por Lavanderia",
+      "method": "GET",
+      "url": "http://localhost:3000/maquinas/lavanderia/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_get_maquina",
+      "_type": "request",
+      "parentId": "fld_maquinas",
+      "name": "GET Maquina por ID",
+      "method": "GET",
+      "url": "http://localhost:3000/maquinas/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_create_maquina",
+      "_type": "request",
+      "parentId": "fld_maquinas",
+      "name": "POST Criar Maquina",
+      "method": "POST",
+      "url": "http://localhost:3000/maquinas",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"lavanderia_id\": 1,\n  \"numero\": 1,\n  \"tipo\": \"LAVAR\",\n  \"status\": \"LIVRE\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_status_maquina",
+      "_type": "request",
+      "parentId": "fld_maquinas",
+      "name": "PATCH Status Maquina",
+      "method": "PATCH",
+      "url": "http://localhost:3000/maquinas/1/status",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"status\": \"OCUPADA\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "fld_precos",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Precos"
+    },
+    {
+      "_id": "req_create_preco",
+      "_type": "request",
+      "parentId": "fld_precos",
+      "name": "POST Criar Preco",
+      "method": "POST",
+      "url": "http://localhost:3000/precos",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"maquina_id\": 1,\n  \"valor\": 12.5,\n  \"duracao_minutos\": 60\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_list_precos",
+      "_type": "request",
+      "parentId": "fld_precos",
+      "name": "GET Precos por Maquina",
+      "method": "GET",
+      "url": "http://localhost:3000/precos/maquina/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_update_preco",
+      "_type": "request",
+      "parentId": "fld_precos",
+      "name": "PATCH Atualizar Preco",
+      "method": "PATCH",
+      "url": "http://localhost:3000/precos/1",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"valor\": 15.0,\n  \"duracao_minutos\": 90\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_delete_preco",
+      "_type": "request",
+      "parentId": "fld_precos",
+      "name": "DELETE Remover Preco",
+      "method": "DELETE",
+      "url": "http://localhost:3000/precos/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "fld_reservas",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Reservas"
+    },
+    {
+      "_id": "req_list_reservas",
+      "_type": "request",
+      "parentId": "fld_reservas",
+      "name": "GET Listar Reservas",
+      "method": "GET",
+      "url": "http://localhost:3000/reservas",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_reservas_usuario",
+      "_type": "request",
+      "parentId": "fld_reservas",
+      "name": "GET Reservas por Usuario",
+      "method": "GET",
+      "url": "http://localhost:3000/reservas/usuario/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_get_reserva",
+      "_type": "request",
+      "parentId": "fld_reservas",
+      "name": "GET Reserva por ID",
+      "method": "GET",
+      "url": "http://localhost:3000/reservas/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_create_reserva",
+      "_type": "request",
+      "parentId": "fld_reservas",
+      "name": "POST Criar Reserva",
+      "method": "POST",
+      "url": "http://localhost:3000/reservas",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"maquina_id\": 1,\n  \"usuario_id\": 1,\n  \"data_inicio\": \"2026-05-30T10:00:00.000Z\",\n  \"data_fim\": \"2026-05-30T11:00:00.000Z\",\n  \"status\": \"PENDENTE\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_update_reserva",
+      "_type": "request",
+      "parentId": "fld_reservas",
+      "name": "PATCH Status Reserva",
+      "method": "PATCH",
+      "url": "http://localhost:3000/reservas/1/status",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"status\": \"CONCLUIDA\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_delete_reserva",
+      "_type": "request",
+      "parentId": "fld_reservas",
+      "name": "DELETE Reserva",
+      "method": "DELETE",
+      "url": "http://localhost:3000/reservas/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "fld_pagamentos",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Pagamentos"
+    },
+    {
+      "_id": "req_list_pagamentos",
+      "_type": "request",
+      "parentId": "fld_pagamentos",
+      "name": "GET Listar Pagamentos",
+      "method": "GET",
+      "url": "http://localhost:3000/pagamentos",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_pagamentos_reserva",
+      "_type": "request",
+      "parentId": "fld_pagamentos",
+      "name": "GET Pagamentos por Reserva",
+      "method": "GET",
+      "url": "http://localhost:3000/pagamentos/reserva/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_create_pagamento",
+      "_type": "request",
+      "parentId": "fld_pagamentos",
+      "name": "POST Criar Pagamento",
+      "method": "POST",
+      "url": "http://localhost:3000/pagamentos",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"reserva_id\": 1,\n  \"valor\": 12.5,\n  \"status\": \"PAGO\",\n  \"metodo\": \"PIX\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "fld_notificacoes",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Notificacoes"
+    },
+    {
+      "_id": "req_list_notificacoes",
+      "_type": "request",
+      "parentId": "fld_notificacoes",
+      "name": "GET Listar Notificacoes",
+      "method": "GET",
+      "url": "http://localhost:3000/notificacoes",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_notificacoes_usuario",
+      "_type": "request",
+      "parentId": "fld_notificacoes",
+      "name": "GET Notificacoes por Usuario",
+      "method": "GET",
+      "url": "http://localhost:3000/notificacoes/usuario/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_get_notificacao",
+      "_type": "request",
+      "parentId": "fld_notificacoes",
+      "name": "GET Notificacao por ID",
+      "method": "GET",
+      "url": "http://localhost:3000/notificacoes/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_create_notificacao",
+      "_type": "request",
+      "parentId": "fld_notificacoes",
+      "name": "POST Criar Notificacao",
+      "method": "POST",
+      "url": "http://localhost:3000/notificacoes",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"usuario_id\": 1,\n  \"mensagem\": \"Sua lavagem foi concluida\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_mark_notificacao",
+      "_type": "request",
+      "parentId": "fld_notificacoes",
+      "name": "PATCH Marcar Como Lida",
+      "method": "PATCH",
+      "url": "http://localhost:3000/notificacoes/1/lida",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_delete_notificacao",
+      "_type": "request",
+      "parentId": "fld_notificacoes",
+      "name": "DELETE Notificacao",
+      "method": "DELETE",
+      "url": "http://localhost:3000/notificacoes/1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "fld_admin",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Admin"
+    },
+    {
+      "_id": "req_create_admin",
+      "_type": "request",
+      "parentId": "fld_admin",
+      "name": "POST Criar Admin",
+      "method": "POST",
+      "url": "http://localhost:3000/admin",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.adminToken }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Admin Teste\",\n  \"email\": \"admin2@teste.com\",\n  \"senha\": \"123456\"\n}"
+      },
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_list_admins",
+      "_type": "request",
+      "parentId": "fld_admin",
+      "name": "GET Listar Admins",
+      "method": "GET",
+      "url": "http://localhost:3000/admin",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.adminToken }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "fld_relatorios",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_api",
+      "name": "Relatorios"
+    },
+    {
+      "_id": "req_relatorio_lucro",
+      "_type": "request",
+      "parentId": "fld_relatorios",
+      "name": "GET Uso e Lucro",
+      "method": "GET",
+      "url": "http://localhost:3000/relatorios/uso-lucro",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.adminToken }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    },
+    {
+      "_id": "req_relatorio_lucro_lavanderia",
+      "_type": "request",
+      "parentId": "fld_relatorios",
+      "name": "GET Uso e Lucro por Lavanderia",
+      "method": "GET",
+      "url": "http://localhost:3000/relatorios/uso-lucro?lavanderia_id=1",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.adminToken }}"
+        }
+      ],
+      "body": {},
+      "authentication": {},
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingProxy": null,
+      "settingCookieJar": null
+    }
+  ]
+}

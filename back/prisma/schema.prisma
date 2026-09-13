@@ -1,0 +1,159 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TipoUsuario {
+  USER
+  PROPRIETARIO
+  ADMIN
+}
+
+model Usuario {
+  usuario_id     Int      @id @default(autoincrement())
+  nome           String
+  email          String   @unique
+  senha          String
+  tipo           TipoUsuario
+  createdAt      DateTime @default(now())
+
+  // Relacionamentos
+  lavanderias    Lavanderia[]
+  notificacoes   Notificacao[]
+  reservas       Reserva[]
+  logs           Log[]
+
+  @@map("usuario")
+}
+
+model Lavanderia {
+  lavanderia_id   Int     @id @default(autoincrement())
+  nome            String
+  endereco        String
+  latitude        Float
+  longitude       Float
+  proprietario_id Int
+  proprietario    Usuario @relation(fields: [proprietario_id], references: [usuario_id])
+
+  // Relacionamentos
+  maquinas        Maquina[]
+  ocorrencia      Ocorrencia[]
+
+  @@map("lavanderia")
+}
+
+model Maquina {
+  maquina_id     Int      @id @default(autoincrement())
+  lavanderia_id  Int
+  lavanderia     Lavanderia @relation(fields: [lavanderia_id], references: [lavanderia_id])
+  numero         Int
+  tipo           String
+  status         String
+
+  // Relacionamentos
+  reservas       Reserva[]
+  precos         Preco[]
+
+  @@map("maquina")
+}
+
+model Reserva {
+  reserva_id     Int      @id @default(autoincrement())
+  maquina_id     Int
+  maquina        Maquina  @relation(fields: [maquina_id], references: [maquina_id])
+  usuario_id     Int
+  usuario        Usuario  @relation(fields: [usuario_id], references: [usuario_id])
+  data_inicio    DateTime
+  data_fim       DateTime
+  status         String
+
+  // Relacionamentos
+  pagamentos     Pagamento[]
+
+  @@map("reserva")
+}
+
+model Notificacao {
+  notificacao_id Int      @id @default(autoincrement())
+  usuario_id     Int
+  usuario        Usuario  @relation(fields: [usuario_id], references: [usuario_id])
+  mensagem       String
+  lida           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@map("notificacao")
+}
+
+model Preco {
+  preco_id         Int     @id @default(autoincrement())
+  maquina_id       Int
+  maquina          Maquina @relation(fields: [maquina_id], references: [maquina_id])
+  valor            Decimal @db.Decimal(10, 2)
+  duracao_minutos  Int
+
+  @@map("preco")
+}
+
+model Pagamento {
+  pagamento_id    Int      @id @default(autoincrement())
+  reserva_id      Int
+  reserva         Reserva  @relation(fields: [reserva_id], references: [reserva_id])
+  valor           Decimal  @db.Decimal(10, 2)
+  status          String
+  metodo          String
+  data_pagamento  DateTime
+
+  @@map("pagamento")
+}
+
+model Log {
+  log_id          Int      @id @default(autoincrement())
+  admin_id        Int
+  admin           Usuario  @relation(fields: [admin_id], references: [usuario_id])
+  acao            String
+  tabela_afetada  String
+  registro_afetado Int
+  data_hora       DateTime @default(now())
+
+  @@map("log")
+}
+
+model Ocorrencia {
+  ocorrencia_id      Int      @id @default(autoincrement())
+  lavanderia_id      Int
+  lavanderia         Lavanderia @relation(fields: [lavanderia_id], references: [lavanderia_id])
+  titulo             String
+  descricao          String
+  categoria          String
+  impacto            String
+  setor              String
+  tempoParadoHoras   Float
+  envolveCliente     Boolean
+  qtdAfetados        Int
+  nivelCriticidade   String?
+  recomendacaoIA     String?
+  createdAt          DateTime @default(now())
+
+  @@map("ocorrencia")
+}
+
+model AnaliseIA {
+  analise_id         Int      @id @default(autoincrement())
+  ocorrencia_id      Int
+  nivelCriticidade   String
+  prioridade         Int
+  recomendacao       String
+  justificativa      String
+  createdAt          DateTime @default(now())
+
+  @@map("analise_ia")
+}
