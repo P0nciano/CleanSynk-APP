@@ -141,6 +141,25 @@ export async function criarReserva(data: {
   return apiFetch<Reserva>("/reservas", { method: "POST", body: data, token });
 }
 
+export async function criarPaymentIntent(data: {
+  reserva_id: number;
+  valor: number;
+  currency?: string;
+}, token?: string) {
+  return apiFetch<{ clientSecret: string }>("/pagamentos/create-intent", {
+    method: "POST",
+    body: data,
+    token,
+  });
+}
+
+export async function cancelarReserva(reservaId: number, token?: string) {
+  return apiFetch<{ message: string }>(`/reservas/${reservaId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function getNotificacoes(token?: string) {
   return apiFetch<Notificacao[]>("/notificacoes", { token });
 }

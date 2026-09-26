@@ -1,24 +1,24 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useStripe } from '@stripe/stripe-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { criarReserva } from 'src/lib/api';
+import { cancelarReserva, criarPaymentIntent, criarReserva } from 'src/lib/api';
 import { useAuth } from 'src/context/auth';
 
 const METODOS = [
-  { id: 'pix', label: 'Pix', sublabel: 'Pagamento instantâneo', icon: 'flash-outline' },
-  { id: 'cartao', label: 'Cartão de Crédito', sublabel: '4 x sem juros', icon: 'card-outline' },
+  { id: 'cartao', label: 'Cartão de Crédito', sublabel: 'Pagamento seguro via Stripe', icon: 'card-outline' },
 ];
 
 export default function Pagamento() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<any>();
   const { lavanderia, maquina, programa, valor } = route.params;
-  const { user } = useAuth();
-  console.log("USER:", user);
+  const { user, token } = useAuth();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-  const [metodoPagamento, setMetodoPagamento] = useState('pix');
+  const [metodoPagamento, setMetodoPagamento] = useState('cartao');
   const [loading, setLoading] = useState(false);
 
   const desconto = 0;
@@ -27,28 +27,48 @@ export default function Pagamento() {
   const LABEL_PROGRAMA: Record<string, string> = { lava_seca: 'Lava e Seca', secagem: 'Secagem' };
 
   async function handlePagar() {
-  console.log("USER AO PAGAR:", user);
+    if (!user || !token) {
+      Alert.alert('Erro', 'Usuário não está logado');
+      return;
+    }
 
-  if (!user) {
-    Alert.alert("Erro", "Usuário não está logado");
-    return;
-  }
     setLoading(true);
+    let reservaId: number | null = null;
     try {
       const agora = new Date();
       const fim = new Date(agora.getTime() + 45 * 60 * 1000);
-      await criarReserva(
-  {
-    maquina_id: maquina.maquina_id,
-    usuario_id: user.usuario_id,
-    data_inicio: agora.toISOString(),
-    data_fim: fim.toISOString(),
-    status: "ATIVA",
-  },
-  user.token
-);
+
+      const reserva = await criarReserva({
+        maquina_id: maquina.maquina_id,
+        usuario_id: user.usuario_id,
+        data_inicio: agora.toISOString(),
+        data_fim: fim.toISOString(),
+        status: 'AGUARDANDO_PAGAMENTO',
+      }, token);
+      reservaId = reserva.reserva_id;
+
+      const { clientSecret } = await criarPaymentIntent({
+        reserva_id: reserva.reserva_id,
+        valor: total,
+        currency: 'brl',
+      }, token);
+
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'CleanSynk',
+        paymentIntentClientSecret: clientSecret,
+        defaultBillingDetails: { name: user.nome, email: user.email },
+      });
+
+      if (initError) throw new Error(initError.message);
+
+      const { error: paymentError } = await presentPaymentSheet();
+      if (paymentError) throw new Error(paymentError.message);
+
       navigation.navigate('StatusLavagem', { lavanderia, maquina, programa, valor: total });
     } catch (e) {
+      if (reservaId !== null) {
+        await cancelarReserva(reservaId, token).catch(() => undefined);
+      }
       Alert.alert('Erro', e instanceof Error ? e.message : 'Não foi possível criar a reserva.');
     } finally {
       setLoading(false);

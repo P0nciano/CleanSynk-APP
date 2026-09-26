@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { AuthProvider, useAuth } from 'src/context/auth';
 import { SearchProvider } from 'src/context/search';
 
@@ -126,12 +127,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <SearchProvider>
-          <AppContent />
-        </SearchProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <SearchProvider>
+            <AppContent />
+          </SearchProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </StripeProvider>
   );
 }

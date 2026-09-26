@@ -1,0 +1,507 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-09-26T00:00:00.000Z",
+  "__export_source": "cleansynk-complete-routes",
+  "resources": [
+    {
+      "_id": "wrk_cleansynk_complete",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "CleanSynk API - Rotas completas",
+      "description": "Colecao completa para testar as rotas reais do backend CleanSynk"
+    },
+    {
+      "_id": "env_cleansynk_complete",
+      "_type": "environment",
+      "parentId": "wrk_cleansynk_complete",
+      "name": "Base Environment",
+      "data": {
+        "baseUrl": "http://localhost:3000",
+        "token": "",
+        "adminToken": "",
+        "usuarioId": 1,
+        "adminId": 2,
+        "lavanderiaId": 1,
+        "maquinaId": 1,
+        "precoId": 1,
+        "reservaId": 1,
+        "notificacaoId": 1,
+        "paymentIntentId": "pi_COLE_O_ID_AQUI",
+        "stripeSecretKey": "",
+        "email": "usuario.teste@example.com",
+        "senha": "Teste@123",
+        "adminEmail": "admin@example.com",
+        "adminSenha": "Admin@123"
+      }
+    },
+    {
+      "_id": "fld_health_auth",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_complete",
+      "name": "1 - Health e autenticacao"
+    },
+    {
+      "_id": "req_health",
+      "_type": "request",
+      "parentId": "fld_health_auth",
+      "name": "GET Health",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/health",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_login_user",
+      "_type": "request",
+      "parentId": "fld_health_auth",
+      "name": "POST Login usuario",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/login",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"email\": \"{{ _.email }}\",\n  \"senha\": \"{{ _.senha }}\"\n}" }
+    },
+    {
+      "_id": "req_login_admin",
+      "_type": "request",
+      "parentId": "fld_health_auth",
+      "name": "POST Login admin",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/admin-auth/admin/login",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"email\": \"{{ _.adminEmail }}\",\n  \"password\": \"{{ _.adminSenha }}\"\n}" }
+    },
+    {
+      "_id": "fld_users",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_complete",
+      "name": "2 - Usuarios (GET e POST publicos; PATCH protegido por middleware global? verificar)"
+    },
+    {
+      "_id": "req_user_create",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "POST Criar usuario",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/usuarios",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"nome\": \"Usuario Teste\",\n  \"email\": \"{{ _.email }}\",\n  \"senha\": \"{{ _.senha }}\",\n  \"tipo\": \"USER\"\n}" }
+    },
+    {
+      "_id": "req_users_all",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "GET Usuarios",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/usuarios",
+      "headers": []
+    },
+    {
+      "_id": "req_user_by_id",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "GET Usuario por ID",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/usuarios/{{ _.usuarioId }}",
+      "headers": []
+    },
+    {
+      "_id": "req_user_update",
+      "_type": "request",
+      "parentId": "fld_users",
+      "name": "PATCH Atualizar usuario",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/usuarios/{{ _.usuarioId }}",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"nome\": \"Usuario Atualizado\"\n}" }
+    },
+    {
+      "_id": "fld_laundries",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_complete",
+      "name": "3 - Lavanderias"
+    },
+    {
+      "_id": "req_laundries_all",
+      "_type": "request",
+      "parentId": "fld_laundries",
+      "name": "GET Lavanderias",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/lavanderias",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_laundry_by_id",
+      "_type": "request",
+      "parentId": "fld_laundries",
+      "name": "GET Lavanderia por ID",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/lavanderias/{{ _.lavanderiaId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_laundry_create",
+      "_type": "request",
+      "parentId": "fld_laundries",
+      "name": "POST Criar lavanderia",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/lavanderias",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"nome\": \"Lavanderia Teste\",\n  \"endereco\": \"Avenida Paulista 1000 Sao Paulo\",\n  \"proprietario_id\": {{ _.adminId }}\n}" }
+    },
+    {
+      "_id": "req_geocode",
+      "_type": "request",
+      "parentId": "fld_laundries",
+      "name": "GET Geocode endereco",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/lavanderias/geocode?endereco=Avenida%20Paulista%201000%20Sao%20Paulo",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_nearby",
+      "_type": "request",
+      "parentId": "fld_laundries",
+      "name": "GET Lavanderias proximas",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/lavanderias/proximas?latitude=-23.5615&longitude=-46.6560&raioKm=5",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "fld_machines_prices",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_complete",
+      "name": "4 - Maquinas e precos"
+    },
+    {
+      "_id": "req_machines_all",
+      "_type": "request",
+      "parentId": "fld_machines_prices",
+      "name": "GET Maquinas",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/maquinas",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_machine_by_id",
+      "_type": "request",
+      "parentId": "fld_machines_prices",
+      "name": "GET Maquina por ID",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/maquinas/{{ _.maquinaId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_machines_laundry",
+      "_type": "request",
+      "parentId": "fld_machines_prices",
+      "name": "GET Maquinas da lavanderia",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/maquinas/lavanderia/{{ _.lavanderiaId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_machine_create",
+      "_type": "request",
+      "parentId": "fld_machines_prices",
+      "name": "POST Criar maquina",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/maquinas",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"lavanderia_id\": {{ _.lavanderiaId }},\n  \"numero\": 3,\n  \"tipo\": \"LAVA_SECA\",\n  \"status\": \"LIVRE\"\n}" }
+    },
+    {
+      "_id": "req_machine_status",
+      "_type": "request",
+      "parentId": "fld_machines_prices",
+      "name": "PATCH Status maquina",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/maquinas/{{ _.maquinaId }}/status",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"status\": \"LIVRE\"\n}" }
+    },
+    {
+      "_id": "req_price_create",
+      "_type": "request",
+      "parentId": "fld_machines_prices",
+      "name": "POST Criar preco",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/precos",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"maquina_id\": {{ _.maquinaId }},\n  \"valor\": 30,\n  \"duracao_minutos\": 45\n}" }
+    },
+    {
+      "_id": "req_prices_machine",
+      "_type": "request",
+      "parentId": "fld_machines_prices",
+      "name": "GET Precos da maquina",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/precos/maquina/{{ _.maquinaId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_price_update",
+      "_type": "request",
+      "parentId": "fld_machines_prices",
+      "name": "PATCH Atualizar preco",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/precos/{{ _.precoId }}",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"valor\": 32,\n  \"duracao_minutos\": 45\n}" }
+    },
+    {
+      "_id": "req_price_delete",
+      "_type": "request",
+      "parentId": "fld_machines_prices",
+      "name": "DELETE Preco",
+      "method": "DELETE",
+      "url": "{{ _.baseUrl }}/precos/{{ _.precoId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }]
+    },
+    {
+      "_id": "fld_reservations",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_complete",
+      "name": "5 - Reservas"
+    },
+    {
+      "_id": "req_reservations_all",
+      "_type": "request",
+      "parentId": "fld_reservations",
+      "name": "GET Reservas",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/reservas",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }]
+    },
+    {
+      "_id": "req_reservation_by_id",
+      "_type": "request",
+      "parentId": "fld_reservations",
+      "name": "GET Reserva por ID",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/reservas/{{ _.reservaId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_reservations_user",
+      "_type": "request",
+      "parentId": "fld_reservations",
+      "name": "GET Reservas do usuario",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/reservas/usuario/{{ _.usuarioId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_reservation_create",
+      "_type": "request",
+      "parentId": "fld_reservations",
+      "name": "POST Criar reserva",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/reservas",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"maquina_id\": {{ _.maquinaId }},\n  \"usuario_id\": {{ _.usuarioId }},\n  \"data_inicio\": \"2026-09-27T18:00:00.000Z\",\n  \"data_fim\": \"2026-09-27T18:45:00.000Z\",\n  \"status\": \"AGUARDANDO_PAGAMENTO\"\n}" }
+    },
+    {
+      "_id": "req_reservation_status",
+      "_type": "request",
+      "parentId": "fld_reservations",
+      "name": "PATCH Status reserva",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/reservas/{{ _.reservaId }}/status",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"status\": \"CANCELADA\"\n}" }
+    },
+    {
+      "_id": "req_reservation_delete",
+      "_type": "request",
+      "parentId": "fld_reservations",
+      "name": "DELETE Reserva",
+      "method": "DELETE",
+      "url": "{{ _.baseUrl }}/reservas/{{ _.reservaId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "fld_payments",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_complete",
+      "name": "6 - Pagamentos Stripe"
+    },
+    {
+      "_id": "req_payment_intent",
+      "_type": "request",
+      "parentId": "fld_payments",
+      "name": "POST Criar PaymentIntent Stripe",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/pagamentos/create-intent",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"reserva_id\": {{ _.reservaId }},\n  \"valor\": 30,\n  \"currency\": \"brl\"\n}" }
+    },
+    {
+      "_id": "req_stripe_confirm_test",
+      "_type": "request",
+      "parentId": "fld_payments",
+      "name": "POST Confirmar PaymentIntent com cartao de teste",
+      "method": "POST",
+      "url": "https://api.stripe.com/v1/payment_intents/{{ _.paymentIntentId }}/confirm",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.stripeSecretKey }}" },
+        { "name": "Content-Type", "value": "application/x-www-form-urlencoded" }
+      ],
+      "body": { "mimeType": "application/x-www-form-urlencoded", "params": [{ "name": "payment_method", "value": "pm_card_visa" }] },
+      "description": "Teste local. Preencha stripeSecretKey com a STRIPE_SECRET_KEY do back/.env e paymentIntentId com o ID pi_ retornado no create-intent. Nunca envie essa chave para o frontend."
+    },
+    {
+      "_id": "req_payments_all",
+      "_type": "request",
+      "parentId": "fld_payments",
+      "name": "GET Pagamentos (admin)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/pagamentos",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }]
+    },
+    {
+      "_id": "req_payments_reservation",
+      "_type": "request",
+      "parentId": "fld_payments",
+      "name": "GET Pagamentos da reserva",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/pagamentos/reserva/{{ _.reservaId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_payment_manual",
+      "_type": "request",
+      "parentId": "fld_payments",
+      "name": "POST Pagamento manual (somente teste)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/pagamentos",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"reserva_id\": {{ _.reservaId }},\n  \"valor\": 30,\n  \"status\": \"PAGO\",\n  \"metodo\": \"teste\"\n}" }
+    },
+    {
+      "_id": "req_stripe_webhook_reference",
+      "_type": "request",
+      "parentId": "fld_payments",
+      "name": "POST Webhook Stripe (nao chamar pelo Insomnia)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/webhook/stripe",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "stripe-signature", "value": "assinatura-gerada-pelo-stripe-cli" }],
+      "body": { "mimeType": "application/json", "text": "{}" },
+      "description": "Use stripe listen --forward-to localhost:3000/webhook/stripe. O webhook exige assinatura valida."
+    },
+    {
+      "_id": "fld_notifications",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_complete",
+      "name": "7 - Notificacoes"
+    },
+    {
+      "_id": "req_notifications_all",
+      "_type": "request",
+      "parentId": "fld_notifications",
+      "name": "GET Notificacoes (admin)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/notificacoes",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }]
+    },
+    {
+      "_id": "req_notifications_user",
+      "_type": "request",
+      "parentId": "fld_notifications",
+      "name": "GET Notificacoes do usuario",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/notificacoes/usuario/{{ _.usuarioId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_notification_by_id",
+      "_type": "request",
+      "parentId": "fld_notifications",
+      "name": "GET Notificacao por ID",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/notificacoes/{{ _.notificacaoId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_notification_create",
+      "_type": "request",
+      "parentId": "fld_notifications",
+      "name": "POST Criar notificacao",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/notificacoes",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"usuario_id\": {{ _.usuarioId }},\n  \"mensagem\": \"Notificacao de teste\"\n}" }
+    },
+    {
+      "_id": "req_notification_read",
+      "_type": "request",
+      "parentId": "fld_notifications",
+      "name": "PATCH Marcar notificacao como lida",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/notificacoes/{{ _.notificacaoId }}/lida",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "req_notification_delete",
+      "_type": "request",
+      "parentId": "fld_notifications",
+      "name": "DELETE Notificacao",
+      "method": "DELETE",
+      "url": "{{ _.baseUrl }}/notificacoes/{{ _.notificacaoId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }]
+    },
+    {
+      "_id": "fld_admin_reports_ai",
+      "_type": "request_group",
+      "parentId": "wrk_cleansynk_complete",
+      "name": "8 - Admin, relatorios e IA"
+    },
+    {
+      "_id": "req_admin_create",
+      "_type": "request",
+      "parentId": "fld_admin_reports_ai",
+      "name": "POST Criar admin (sem auth)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/admin",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"nome\": \"Admin Teste\",\n  \"email\": \"{{ _.adminEmail }}\",\n  \"senha\": \"{{ _.adminSenha }}\"\n}" }
+    },
+    {
+      "_id": "req_admin_all",
+      "_type": "request",
+      "parentId": "fld_admin_reports_ai",
+      "name": "GET Admins",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/admin",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }]
+    },
+    {
+      "_id": "req_report",
+      "_type": "request",
+      "parentId": "fld_admin_reports_ai",
+      "name": "GET Relatorio uso e lucro",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/relatorios/uso-lucro?lavanderia_id={{ _.lavanderiaId }}",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }]
+    },
+    {
+      "_id": "req_ai_new",
+      "_type": "request",
+      "parentId": "fld_admin_reports_ai",
+      "name": "POST Analisar ocorrencias com IA",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/assistente-ia/analisar",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }, { "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }],
+      "body": { "mimeType": "application/json", "text": "{\n  \"ocorrencias\": [\n    {\n      \"lavanderia_id\": {{ _.lavanderiaId }},\n      \"titulo\": \"Maquina parada\",\n      \"descricao\": \"A maquina nao centrifuga e ha clientes aguardando\",\n      \"categoria\": \"equipamento\",\n      \"setor\": \"lavagem\",\n      \"tempoParadoHoras\": 6,\n      \"envolveCliente\": true,\n      \"qtdAfetados\": 8\n    }\n  ]\n}" }
+    },
+    {
+      "_id": "req_ai_database",
+      "_type": "request",
+      "parentId": "fld_admin_reports_ai",
+      "name": "GET Analisar ocorrencias do banco",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/assistente-ia/analisar",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.adminToken }}" }]
+    }
+  ]
+}
