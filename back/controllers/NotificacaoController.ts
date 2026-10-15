@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { prisma, usuarioPublico } from "../lib/prisma";
+import { AuthRequest, podeAcessar } from "../middlewares/autentica";
 
 export class NotificacaoController {
 
@@ -8,7 +9,7 @@ export class NotificacaoController {
 
       const notificacoes = await prisma.notificacao.findMany({
         include: {
-          usuario: true
+          usuario: usuarioPublico
         },
         orderBy: {
           createdAt: "desc"
@@ -26,7 +27,7 @@ export class NotificacaoController {
     }
   }
 
-  async findById(req: Request, res: Response) {
+  async findById(req: AuthRequest, res: Response) {
 
     try {
 
@@ -37,7 +38,7 @@ export class NotificacaoController {
           notificacao_id: Number(id)
         },
         include: {
-          usuario: true
+          usuario: usuarioPublico
         }
       });
 
@@ -46,6 +47,8 @@ export class NotificacaoController {
           error: "Notificação não encontrada"
         });
       }
+
+      if (!podeAcessar(req, notificacao.usuario_id)) return res.status(403).json({ error: "Acesso negado" });
 
       return res.status(200).json(notificacao);
 
@@ -58,18 +61,20 @@ export class NotificacaoController {
     }
   }
 
-  async findByUsuario(req: Request, res: Response) {
+  async findByUsuario(req: AuthRequest, res: Response) {
 
     try {
 
       const { usuarioId } = req.params;
+
+      if (!podeAcessar(req, Number(usuarioId))) return res.status(403).json({ error: "Acesso negado" });
 
       const notificacoes = await prisma.notificacao.findMany({
         where: {
           usuario_id: Number(usuarioId)
         },
         include: {
-          usuario: true
+          usuario: usuarioPublico
         },
         orderBy: {
           createdAt: "desc"
@@ -117,11 +122,15 @@ export class NotificacaoController {
     }
   }
 
-  async markAsRead(req: Request, res: Response) {
+  async markAsRead(req: AuthRequest, res: Response) {
 
     try {
 
       const { id } = req.params;
+
+      const existente = await prisma.notificacao.findUnique({ where: { notificacao_id: Number(id) } });
+      if (!existente) return res.status(404).json({ error: "Notificação não encontrada" });
+      if (!podeAcessar(req, existente.usuario_id)) return res.status(403).json({ error: "Acesso negado" });
 
       const notificacao = await prisma.notificacao.update({
         where: {
@@ -143,11 +152,15 @@ export class NotificacaoController {
     }
   }
 
-  async delete(req: Request, res: Response) {
+  async delete(req: AuthRequest, res: Response) {
 
     try {
 
       const { id } = req.params;
+
+      const existente = await prisma.notificacao.findUnique({ where: { notificacao_id: Number(id) } });
+      if (!existente) return res.status(404).json({ error: "Notificação não encontrada" });
+      if (!podeAcessar(req, existente.usuario_id)) return res.status(403).json({ error: "Acesso negado" });
 
       await prisma.notificacao.delete({
         where: {

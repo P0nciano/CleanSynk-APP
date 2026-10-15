@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useStripe } from '@stripe/stripe-react-native';
+import { useStripe } from 'src/lib/stripe';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { cancelarReserva, criarPaymentIntent, criarReserva } from 'src/lib/api';
@@ -49,8 +49,7 @@ export default function Pagamento() {
 
       const { clientSecret } = await criarPaymentIntent({
         reserva_id: reserva.reserva_id,
-        valor: total,
-        currency: 'brl',
+        programa,
       }, token);
 
       const { error: initError } = await initPaymentSheet({

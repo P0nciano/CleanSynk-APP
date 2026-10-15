@@ -31,6 +31,11 @@ export function autentica(req: AuthRequest, res: Response, next: NextFunction) {
   }
 }
 
+// Dono do recurso ou admin
+export function podeAcessar(req: AuthRequest, usuarioId: number) {
+  return Boolean(req.admin) || req.user?.id === usuarioId;
+}
+
 export function autenticaAdmin(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.admin) return res.status(403).json({ erro: "Acesso negado. Apenas administradores." });
   next();

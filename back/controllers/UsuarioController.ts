@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { AuthRequest, podeAcessar } from "../middlewares/autentica";
 import bcrypt from "bcrypt";
 import { TipoUsuario } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
@@ -6,7 +7,7 @@ import { prisma } from "../lib/prisma";
 export class UsuarioController {
   async create(req: Request, res: Response) {
     try {
-      const { nome, email, senha, tipo } = req.body;
+      const { nome, email, senha } = req.body;
 
       if (!nome || !email || !senha) {
         return res.status(400).json({ error: "nome, email e senha são obrigatórios" });
@@ -23,7 +24,7 @@ export class UsuarioController {
           nome,
           email,
           senha: senhaHash,
-          tipo: tipo ?? TipoUsuario.USER,
+          tipo: TipoUsuario.USER, // cadastro público nunca cria admin
         },
         select: {
           usuario_id: true,
@@ -59,9 +60,10 @@ export class UsuarioController {
     }
   }
 
-  async findById(req: Request, res: Response) {
+  async findById(req: AuthRequest, res: Response) {
     try {
       const usuarioId = Number(req.params.id);
+      if (!podeAcessar(req, usuarioId)) return res.status(403).json({ error: "Acesso negado" });
 
       const usuario = await prisma.usuario.findUnique({
         where: { usuario_id: usuarioId },
@@ -84,9 +86,10 @@ export class UsuarioController {
     }
   }
 
-  async updateProfile(req: Request, res: Response) {
+  async updateProfile(req: AuthRequest, res: Response) {
     try {
       const usuarioId = Number(req.params.id);
+      if (!podeAcessar(req, usuarioId)) return res.status(403).json({ error: "Acesso negado" });
       const { nome, email, senha } = req.body;
 
       const usuarioExistente = await prisma.usuario.findUnique({
