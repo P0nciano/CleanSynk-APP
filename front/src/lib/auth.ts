@@ -21,12 +21,7 @@ export async function saveToken(token: string) {
   }
 
   try {
-    console.log("SALVANDO TOKEN...");
     await AsyncStorage.setItem(TOKEN_KEY, token);
-
-    const teste = await AsyncStorage.getItem(TOKEN_KEY);
-
-    console.log("TOKEN GRAVADO:", teste);
   } catch (e) {
     console.error("ERRO AO SALVAR TOKEN:", e);
   }
@@ -39,8 +34,6 @@ export async function getStoredToken() {
 
   try {
     const token = await AsyncStorage.getItem(TOKEN_KEY);
-
-    console.log("TOKEN LIDO:", token);
 
     return token;
   } catch (e) {
@@ -71,12 +64,7 @@ export async function saveUser(user: AuthUser) {
   }
 
   try {
-    console.log("SALVANDO USER...");
     await AsyncStorage.setItem(USER_KEY, json);
-
-    const teste = await AsyncStorage.getItem(USER_KEY);
-
-    console.log("USER GRAVADO:", teste);
   } catch (e) {
     console.error("ERRO AO SALVAR USER:", e);
   }
@@ -90,8 +78,6 @@ export async function getStoredUser(): Promise<AuthUser | null> {
   } else {
     try {
       json = await AsyncStorage.getItem(USER_KEY);
-
-      console.log("USER LIDO:", json);
     } catch (e) {
       console.error("ERRO AO LER USER:", e);
       return null;

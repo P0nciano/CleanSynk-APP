@@ -10,39 +10,54 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
 // shortcut: preço fixo por programa (igual ao da tela EscolherMaquina); trocar pela tabela Preco quando cada máquina tiver preços cadastrados
 const PRECO_PROGRAMA: Record<string, number> = { lava_seca: 30, secagem: 18 };
 
+// Valida a cobrança (dono da reserva, ainda não paga) e calcula o valor no servidor.
+// Devolve os dados ou já responde o erro e devolve null.
+async function prepararCobranca(req: AuthRequest, res: Response) {
+  const { reserva_id, programa } = req.body;
+
+  // O valor vem do servidor, nunca do app
+  const valorNumerico = PRECO_PROGRAMA[programa];
+  if (!reserva_id || !valorNumerico) {
+    res.status(400).json({ error: "reserva_id e programa válidos são obrigatórios" });
+    return null;
+  }
+
+  const reserva = await prisma.reserva.findUnique({
+    where: { reserva_id: Number(reserva_id) },
+    include: { pagamentos: true },
+  });
+
+  if (!reserva) {
+    res.status(404).json({ error: "Reserva não encontrada" });
+    return null;
+  }
+  if (!req.user || (req.user.role !== "ADMIN" && reserva.usuario_id !== req.user.id)) {
+    res.status(403).json({ error: "Você não pode pagar esta reserva" });
+    return null;
+  }
+  if (reserva.pagamentos.some((pagamento) => pagamento.status === "PAGO")) {
+    res.status(409).json({ error: "Esta reserva já possui um pagamento confirmado" });
+    return null;
+  }
+
+  return {
+    amount: Math.round(valorNumerico * 100),
+    // O webhook payment_intent.succeeded usa esses metadados para marcar a reserva como PAGA
+    metadata: { reserva_id: String(reserva.reserva_id), usuario_id: String(reserva.usuario_id) },
+  };
+}
+
 export class PagamentoController {
+  // App (Android/iOS): PaymentSheet nativo
   async createIntent(req: AuthRequest, res: Response) {
     try {
-      const { reserva_id, programa } = req.body;
-
-      // O valor vem do servidor, nunca do app
-      const valorNumerico = PRECO_PROGRAMA[programa];
-      if (!reserva_id || !valorNumerico) {
-        return res.status(400).json({ error: "reserva_id e programa válidos são obrigatórios" });
-      }
-
-      const reserva = await prisma.reserva.findUnique({
-        where: { reserva_id: Number(reserva_id) },
-        include: { pagamentos: true },
-      });
-
-      if (!reserva) return res.status(404).json({ error: "Reserva não encontrada" });
-      if (!req.user || (req.user.role !== "ADMIN" && reserva.usuario_id !== req.user.id)) {
-        return res.status(403).json({ error: "Você não pode pagar esta reserva" });
-      }
-      if (reserva.pagamentos.some((pagamento) => pagamento.status === "PAGO")) {
-        return res.status(409).json({ error: "Esta reserva já possui um pagamento confirmado" });
-      }
-
-      const amount = Math.round(valorNumerico * 100);
+      const cobranca = await prepararCobranca(req, res);
+      if (!cobranca) return;
 
       const paymentIntent = await stripe.paymentIntents.create({
-        amount,
+        amount: cobranca.amount,
         currency: "brl",
-        metadata: {
-          reserva_id: String(reserva.reserva_id),
-          usuario_id: String(reserva.usuario_id),
-        },
+        metadata: cobranca.metadata,
       });
 
       return res.status(200).json({
@@ -51,6 +66,36 @@ export class PagamentoController {
       });
     } catch (error) {
       return res.status(500).json({ error: "Erro ao criar payment intent" });
+    }
+  }
+
+  // Web: página de pagamento do próprio Stripe (o SDK nativo não roda no navegador)
+  async createCheckout(req: AuthRequest, res: Response) {
+    try {
+      const cobranca = await prepararCobranca(req, res);
+      if (!cobranca) return;
+
+      const site = process.env.FRONTEND_URL || req.headers.origin;
+      if (!site) return res.status(500).json({ error: "FRONTEND_URL não configurada" });
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: [{
+          quantity: 1,
+          price_data: {
+            currency: "brl",
+            unit_amount: cobranca.amount,
+            product_data: { name: `CleanSynk — Reserva #${cobranca.metadata.reserva_id}` },
+          },
+        }],
+        payment_intent_data: { metadata: cobranca.metadata },
+        success_url: `${site}/?pagamento=sucesso`,
+        cancel_url: `${site}/?cancelar_reserva=${cobranca.metadata.reserva_id}`,
+      });
+
+      return res.status(200).json({ url: session.url });
+    } catch (error) {
+      return res.status(500).json({ error: "Erro ao criar checkout" });
     }
   }
 

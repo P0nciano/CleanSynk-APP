@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStripe } from 'src/lib/stripe';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { cancelarReserva, criarPaymentIntent, criarReserva } from 'src/lib/api';
+import { cancelarReserva, criarCheckout, criarPaymentIntent, criarReserva } from 'src/lib/api';
 import { useAuth } from 'src/context/auth';
 
 const METODOS = [
@@ -46,6 +46,13 @@ export default function Pagamento() {
         status: 'AGUARDANDO_PAGAMENTO',
       }, token);
       reservaId = reserva.reserva_id;
+
+      // Web: vai para a página do Stripe; a volta é tratada no App.tsx
+      if (Platform.OS === 'web') {
+        const { url } = await criarCheckout({ reserva_id: reserva.reserva_id, programa }, token);
+        window.location.href = url;
+        return;
+      }
 
       const { clientSecret } = await criarPaymentIntent({
         reserva_id: reserva.reserva_id,

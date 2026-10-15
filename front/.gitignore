@@ -5,3 +5,7 @@ node_modules
 .env 
 expo-env.d.ts
 # @end expo-cli
+.expo/
+
+# Build web (gerado na Vercel)
+dist/

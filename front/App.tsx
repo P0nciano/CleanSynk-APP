@@ -1,5 +1,7 @@
 import './global.css';
-import React from 'react';
+import 'src/lib/alertWeb';
+import React, { useEffect } from 'react';
+import { Alert, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,6 +9,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StripeProvider } from 'src/lib/stripe';
 import { AuthProvider, useAuth } from 'src/context/auth';
+import { cancelarReserva } from 'src/lib/api';
 import { SearchProvider } from 'src/context/search';
 
 // USER
@@ -93,6 +96,18 @@ function AdminTabs() {
 
 function AppContent() {
   const { token, loading, user } = useAuth();
+
+  // Web: volta da página de pagamento do Stripe (?pagamento=sucesso ou ?cancelar_reserva=<id>)
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !token) return;
+    const params = new URLSearchParams(window.location.search);
+    const cancelar = params.get('cancelar_reserva');
+    if (!cancelar && params.get('pagamento') !== 'sucesso') return;
+
+    window.history.replaceState(null, '', window.location.pathname);
+    if (cancelar) cancelarReserva(Number(cancelar), token).catch(() => undefined);
+    Alert.alert(cancelar ? 'Pagamento cancelado' : 'Pagamento recebido!', cancelar ? 'A reserva foi liberada.' : 'Acompanhe em Reservas.');
+  }, [token]);
 
   if (loading) return null;
 
