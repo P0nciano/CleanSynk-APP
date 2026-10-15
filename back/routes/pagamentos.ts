@@ -1,12 +1,12 @@
 import { Router } from "express";
+import { autenticaAdmin } from "../middlewares/autentica";
 import { PagamentoController } from "../controllers/PagamentoController";
 
 const pagamentosRoutes = Router();
 const pagamentoController = new PagamentoController();
 
-pagamentosRoutes.get("/", pagamentoController.findAll);
-pagamentosRoutes.get("/reserva/:reservaId", pagamentoController.findByReserva);
-pagamentosRoutes.post("/", pagamentoController.create);
+pagamentosRoutes.get("/", autenticaAdmin, pagamentoController.findAll);
+pagamentosRoutes.get("/reserva/:reservaId", autenticaAdmin, pagamentoController.findByReserva);
 pagamentosRoutes.post("/create-intent", pagamentoController.createIntent);
 
 export { pagamentosRoutes };

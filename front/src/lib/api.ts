@@ -143,8 +143,7 @@ export async function criarReserva(data: {
 
 export async function criarPaymentIntent(data: {
   reserva_id: number;
-  valor: number;
-  currency?: string;
+  programa: string;
 }, token?: string) {
   return apiFetch<{ clientSecret: string }>("/pagamentos/create-intent", {
     method: "POST",

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { prisma, usuarioPublico } from "../lib/prisma";
 import Stripe from "stripe";
 import { AuthRequest } from "../middlewares/autentica";
 
@@ -7,18 +7,18 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2022-11-15",
 });
 
+// shortcut: preço fixo por programa (igual ao da tela EscolherMaquina); trocar pela tabela Preco quando cada máquina tiver preços cadastrados
+const PRECO_PROGRAMA: Record<string, number> = { lava_seca: 30, secagem: 18 };
+
 export class PagamentoController {
   async createIntent(req: AuthRequest, res: Response) {
     try {
-      const { reserva_id, valor, currency } = req.body;
+      const { reserva_id, programa } = req.body;
 
-      if (!reserva_id || valor === undefined) {
-        return res.status(400).json({ error: "reserva_id e valor são obrigatórios" });
-      }
-
-      const valorNumerico = Number(valor);
-      if (!Number.isFinite(valorNumerico) || valorNumerico <= 0) {
-        return res.status(400).json({ error: "valor deve ser um número maior que zero" });
+      // O valor vem do servidor, nunca do app
+      const valorNumerico = PRECO_PROGRAMA[programa];
+      if (!reserva_id || !valorNumerico) {
+        return res.status(400).json({ error: "reserva_id e programa válidos são obrigatórios" });
       }
 
       const reserva = await prisma.reserva.findUnique({
@@ -38,7 +38,7 @@ export class PagamentoController {
 
       const paymentIntent = await stripe.paymentIntents.create({
         amount,
-        currency: (currency || "brl").toLowerCase(),
+        currency: "brl",
         metadata: {
           reserva_id: String(reserva.reserva_id),
           usuario_id: String(reserva.usuario_id),
@@ -105,52 +105,6 @@ export class PagamentoController {
     }
   }
 
-  async create(req: Request, res: Response) {
-    try {
-      const { reserva_id, valor, status, metodo } = req.body;
-
-      if (!reserva_id || valor === undefined || !metodo) {
-        return res.status(400).json({
-          error: "reserva_id, valor e metodo são obrigatórios",
-        });
-      }
-
-      const reserva = await prisma.reserva.findUnique({
-        where: { reserva_id: Number(reserva_id) },
-      });
-
-      if (!reserva) {
-        return res.status(404).json({ error: "Reserva não encontrada" });
-      }
-
-      const pagamento = await prisma.pagamento.create({
-        data: {
-          reserva_id: Number(reserva_id),
-          valor,
-          metodo,
-          status: status ?? "PAGO",
-          data_pagamento: new Date(),
-        },
-      });
-
-      await prisma.reserva.update({
-        where: { reserva_id: Number(reserva_id) },
-        data: { status: "PAGA" },
-      });
-
-      await prisma.notificacao.create({
-        data: {
-          usuario_id: reserva.usuario_id,
-          mensagem: "Pagamento recebido com sucesso",
-        },
-      });
-
-      return res.status(201).json(pagamento);
-    } catch (error) {
-      return res.status(500).json({ error: "Erro ao processar pagamento" });
-    }
-  }
-
   async findByReserva(req: Request, res: Response) {
     try {
       const reservaId = Number(req.params.reservaId);
@@ -172,7 +126,7 @@ export class PagamentoController {
         include: {
           reserva: {
             include: {
-              usuario: true,
+              usuario: usuarioPublico,
               maquina: true,
             },
           },

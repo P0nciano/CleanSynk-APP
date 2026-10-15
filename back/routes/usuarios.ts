@@ -1,12 +1,13 @@
 import { Router } from "express";
+import { autentica, autenticaAdmin } from "../middlewares/autentica";
 import { UsuarioController } from "../controllers/UsuarioController";
 
 const usuariosRoutes = Router();
 const usuarioController = new UsuarioController();
 
-usuariosRoutes.get("/", usuarioController.findAll);
-usuariosRoutes.get("/:id", usuarioController.findById);
+usuariosRoutes.get("/", autentica, autenticaAdmin, usuarioController.findAll);
+usuariosRoutes.get("/:id", autentica, usuarioController.findById);
 usuariosRoutes.post("/", usuarioController.create);
-usuariosRoutes.patch("/:id", usuarioController.updateProfile);
+usuariosRoutes.patch("/:id", autentica, usuarioController.updateProfile);
 
 export { usuariosRoutes };

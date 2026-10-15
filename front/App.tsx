@@ -5,7 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { StripeProvider } from '@stripe/stripe-react-native';
+import { StripeProvider } from 'src/lib/stripe';
 import { AuthProvider, useAuth } from 'src/context/auth';
 import { SearchProvider } from 'src/context/search';
 

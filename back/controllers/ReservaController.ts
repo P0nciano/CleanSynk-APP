@@ -1,41 +1,42 @@
-import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { Response } from "express";
+import { prisma, usuarioPublico, notificarAdmins } from "../lib/prisma";
+import { AuthRequest, podeAcessar } from "../middlewares/autentica";
 
-const ADMIN_USUARIO_ID = 2; // ID fixo do admin
+const incluirReserva = { usuario: usuarioPublico, maquina: true, pagamentos: true };
 
 export class ReservaController {
 
-  async findAll(req: Request, res: Response) {
+  async findAll(req: AuthRequest, res: Response) {
     try {
-      const reservas = await prisma.reserva.findMany({
-        include: { usuario: true, maquina: true, pagamentos: true }
-      });
+      const reservas = await prisma.reserva.findMany({ include: incluirReserva });
       return res.status(200).json(reservas);
     } catch (error) {
       return res.status(500).json({ error: "Erro ao buscar reservas" });
     }
   }
 
-  async findById(req: Request, res: Response) {
+  async findById(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const reserva = await prisma.reserva.findUnique({
         where: { reserva_id: Number(id) },
-        include: { usuario: true, maquina: true, pagamentos: true }
+        include: incluirReserva
       });
       if (!reserva) return res.status(404).json({ error: "Reserva não encontrada" });
+      if (!podeAcessar(req, reserva.usuario_id)) return res.status(403).json({ error: "Acesso negado" });
       return res.status(200).json(reserva);
     } catch (error) {
       return res.status(500).json({ error: "Erro ao buscar reserva" });
     }
   }
 
-  async findByUsuario(req: Request, res: Response) {
+  async findByUsuario(req: AuthRequest, res: Response) {
     try {
       const usuarioId = Number(req.params.usuarioId);
+      if (!podeAcessar(req, usuarioId)) return res.status(403).json({ error: "Acesso negado" });
       const reservas = await prisma.reserva.findMany({
         where: { usuario_id: usuarioId },
-        include: { usuario: true, maquina: true, pagamentos: true },
+        include: incluirReserva,
         orderBy: { data_inicio: "desc" }
       });
       return res.status(200).json(reservas);
@@ -44,58 +45,49 @@ export class ReservaController {
     }
   }
 
-  async create(req: Request, res: Response) {
+  async create(req: AuthRequest, res: Response) {
     try {
-      const { maquina_id, usuario_id, data_inicio, data_fim, status } = req.body;
+      const maquina_id = Number(req.body.maquina_id);
+      const usuario_id = req.user!.id;
+      const inicio = new Date(req.body.data_inicio);
+      const fim = new Date(req.body.data_fim);
+
+      if (!Number.isInteger(maquina_id) || isNaN(inicio.getTime()) || isNaN(fim.getTime()) || fim <= inicio) {
+        return res.status(400).json({ error: "maquina_id, data_inicio e data_fim válidos são obrigatórios" });
+      }
 
       const maquina = await prisma.maquina.findUnique({ where: { maquina_id } });
       if (!maquina) return res.status(404).json({ error: "Máquina não encontrada" });
 
-      const conflito = await prisma.reserva.findFirst({
-        where: {
-          maquina_id,
-          status: { notIn: ["CANCELADA", "CONCLUIDA"] },
-          data_inicio: { lte: new Date(data_fim) },
-          data_fim: { gte: new Date(data_inicio) }
-        }
-      });
-      if (conflito) return res.status(400).json({ error: "Horário indisponível" });
+      // Tudo ou nada: se uma notificação falhar, a reserva não fica órfã segurando a máquina
+      const reserva = await prisma.$transaction(async (tx) => {
+        const conflito = await tx.reserva.findFirst({
+          where: {
+            maquina_id,
+            status: { notIn: ["CANCELADA", "CONCLUIDA"] },
+            data_inicio: { lte: fim },
+            data_fim: { gte: inicio }
+          }
+        });
+        if (conflito) return null;
 
-      const reserva = await prisma.reserva.create({
-        data: {
-          maquina_id,
-          usuario_id,
-          data_inicio: new Date(data_inicio),
-          data_fim: new Date(data_fim),
-          status
-        }
-      });
-
-      await prisma.maquina.update({
-        where: { maquina_id },
-        data: { status: "OCUPADA" }
+        const nova = await tx.reserva.create({
+          data: { maquina_id, usuario_id, data_inicio: inicio, data_fim: fim, status: "AGUARDANDO_PAGAMENTO" }
+        });
+        await tx.maquina.update({ where: { maquina_id }, data: { status: "OCUPADA" } });
+        await tx.notificacao.create({ data: { usuario_id, mensagem: "Reserva criada com sucesso" } });
+        await notificarAdmins(`Nova reserva criada — Máquina ${maquina.numero} (usuário #${usuario_id})`, tx);
+        return nova;
       });
 
-      // Notificação para o usuário
-      await prisma.notificacao.create({
-        data: { usuario_id, mensagem: "Reserva criada com sucesso" }
-      });
-
-      // Notificação para o admin
-      await prisma.notificacao.create({
-        data: {
-          usuario_id: ADMIN_USUARIO_ID,
-          mensagem: `Nova reserva criada — Máquina ${maquina.numero} (usuário #${usuario_id})`
-        }
-      });
-
+      if (!reserva) return res.status(400).json({ error: "Horário indisponível" });
       return res.status(201).json(reserva);
     } catch (error) {
       return res.status(500).json({ error: "Erro ao criar reserva" });
     }
   }
 
-  async updateStatus(req: Request, res: Response) {
+  async updateStatus(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -109,11 +101,12 @@ export class ReservaController {
     }
   }
 
-  async delete(req: Request, res: Response) {
+  async delete(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const reserva = await prisma.reserva.findUnique({ where: { reserva_id: Number(id) } });
       if (!reserva) return res.status(404).json({ error: "Reserva não encontrada" });
+      if (!podeAcessar(req, reserva.usuario_id)) return res.status(403).json({ error: "Acesso negado" });
 
       // Só libera máquina se não houver outra reserva ativa
       const outraAtiva = await prisma.reserva.findFirst({
@@ -130,13 +123,7 @@ export class ReservaController {
           data: { status: "LIVRE" }
         });
 
-        // Notificação admin — máquina liberada
-        await prisma.notificacao.create({
-          data: {
-            usuario_id: ADMIN_USUARIO_ID,
-            mensagem: `Máquina liberada — Reserva #${reserva.reserva_id} encerrada`
-          }
-        });
+        await notificarAdmins(`Máquina liberada — Reserva #${reserva.reserva_id} encerrada`);
       }
 
       await prisma.reserva.delete({ where: { reserva_id: Number(id) } });
@@ -188,13 +175,7 @@ export class ReservaController {
           }
         });
 
-        // Notificação para o admin
-        await prisma.notificacao.create({
-          data: {
-            usuario_id: ADMIN_USUARIO_ID,
-            mensagem: `Máquina ${reserva.maquina.numero} liberada — Reserva #${reserva.reserva_id} concluída`
-          }
-        });
+        await notificarAdmins(`Máquina ${reserva.maquina.numero} liberada — Reserva #${reserva.reserva_id} concluída`);
       }
 
       if (expiradas.length > 0) {
