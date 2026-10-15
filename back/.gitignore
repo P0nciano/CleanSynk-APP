@@ -3,3 +3,6 @@ node_modules
 .env
 
 /generated/prisma
+
+# Build do esbuild (gerado na Vercel)
+/dist

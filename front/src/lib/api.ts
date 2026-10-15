@@ -152,6 +152,11 @@ export async function criarPaymentIntent(data: {
   });
 }
 
+// Web: URL da página de pagamento do Stripe
+export async function criarCheckout(data: { reserva_id: number; programa: string }, token?: string) {
+  return apiFetch<{ url: string }>("/pagamentos/checkout", { method: "POST", body: data, token });
+}
+
 export async function cancelarReserva(reservaId: number, token?: string) {
   return apiFetch<{ message: string }>(`/reservas/${reservaId}`, {
     method: "DELETE",

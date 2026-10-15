@@ -61,6 +61,10 @@ export class ReservaController {
 
       // Tudo ou nada: se uma notificação falhar, a reserva não fica órfã segurando a máquina
       const reserva = await prisma.$transaction(async (tx) => {
+        // Trava a máquina até o fim da transação: reservas simultâneas da mesma máquina viram uma fila,
+        // e a segunda só checa conflito depois que a primeira gravou (sem isso, as duas passariam)
+        await tx.$queryRaw`SELECT 1 FROM maquina WHERE maquina_id = ${maquina_id} FOR UPDATE`;
+
         const conflito = await tx.reserva.findFirst({
           where: {
             maquina_id,
@@ -80,7 +84,7 @@ export class ReservaController {
         return nova;
       });
 
-      if (!reserva) return res.status(400).json({ error: "Horário indisponível" });
+      if (!reserva) return res.status(409).json({ error: "Horário indisponível" });
       return res.status(201).json(reserva);
     } catch (error) {
       return res.status(500).json({ error: "Erro ao criar reserva" });
@@ -146,10 +150,12 @@ export class ReservaController {
       });
 
       for (const reserva of expiradas) {
-        await prisma.reserva.update({
-          where: { reserva_id: reserva.reserva_id },
+        // Só segue quem de fato mudou o status: outra instância pode estar liberando a mesma reserva
+        const { count } = await prisma.reserva.updateMany({
+          where: { reserva_id: reserva.reserva_id, status: { notIn: ["CANCELADA", "CONCLUIDA"] } },
           data: { status: "CONCLUIDA" }
         });
+        if (count === 0) continue;
 
         // Verifica se há outra reserva ativa na mesma máquina
         const outraAtiva = await prisma.reserva.findFirst({

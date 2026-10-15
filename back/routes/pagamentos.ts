@@ -8,5 +8,6 @@ const pagamentoController = new PagamentoController();
 pagamentosRoutes.get("/", autenticaAdmin, pagamentoController.findAll);
 pagamentosRoutes.get("/reserva/:reservaId", autenticaAdmin, pagamentoController.findByReserva);
 pagamentosRoutes.post("/create-intent", pagamentoController.createIntent);
+pagamentosRoutes.post("/checkout", pagamentoController.createCheckout);
 
 export { pagamentosRoutes };
