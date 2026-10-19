@@ -119,6 +119,10 @@ export async function login(email: string, senha: string) {
   return publicFetch<AuthUser>("/login", { method: "POST", body: { email, senha } });
 }
 
+export async function cadastrar(data: { nome: string; email: string; senha: string }) {
+  return publicFetch<{ usuario_id: number }>("/usuarios", { method: "POST", body: data });
+}
+
 export async function getLavanderias(token?: string) {
   return apiFetch<Lavanderia[]>("/lavanderias", { token });
 }

@@ -10,21 +10,20 @@ export class RelatorioController {
         ? { maquina: { lavanderia_id: lavanderiaId } }
         : undefined;
 
+      // Só entra no lucro o que o Stripe confirmou
       const wherePagamento = lavanderiaId
-        ? { reserva: { maquina: { lavanderia_id: lavanderiaId } } }
-        : undefined;
+        ? { status: "PAGO", reserva: { maquina: { lavanderia_id: lavanderiaId } } }
+        : { status: "PAGO" };
 
       const [totalReservas, reservasConcluidas, reservasPagas, pagamentos] = await Promise.all([
         prisma.reserva.count({ where: whereReserva }),
         prisma.reserva.count({ where: { ...whereReserva, status: "CONCLUIDA" } }),
-        prisma.reserva.count({ where: { ...whereReserva, status: "PAGA" } }),
-        prisma.pagamento.findMany({
-          where: wherePagamento,
-          select: { valor: true },
-        }),
+        // Pela existência do pagamento: reserva paga vira CONCLUIDA quando o horário acaba
+        prisma.reserva.count({ where: { ...whereReserva, pagamentos: { some: { status: "PAGO" } } } }),
+        prisma.pagamento.aggregate({ where: wherePagamento, _sum: { valor: true } }),
       ]);
 
-      const lucroTotal = pagamentos.reduce((acc, pagamento) => acc + Number(pagamento.valor), 0);
+      const lucroTotal = Number(pagamentos._sum.valor ?? 0);
 
       return res.status(200).json({
         totalReservas,

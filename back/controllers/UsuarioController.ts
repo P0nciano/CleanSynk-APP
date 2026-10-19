@@ -12,6 +12,9 @@ export class UsuarioController {
       if (!nome || !email || !senha) {
         return res.status(400).json({ error: "nome, email e senha são obrigatórios" });
       }
+      if (!/^\S+@\S+\.\S+$/.test(email) || String(senha).length < 6) {
+        return res.status(400).json({ error: "E-mail inválido ou senha com menos de 6 caracteres" });
+      }
 
       const emailExistente = await prisma.usuario.findUnique({ where: { email } });
       if (emailExistente) {

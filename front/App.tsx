@@ -18,6 +18,7 @@ import Lavanderias from './app/lavanderias';
 import Reservas from './app/reservas';
 import Perfil from './app/perfil';
 import Login from './app/login';
+import Cadastro from './app/cadastro';
 
 // USER - telas extras (stack)
 import LavanderiaDetalhe from './app/user/LavanderiaDetalhe';
@@ -117,7 +118,10 @@ function AppContent() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!token ? (
-          <Stack.Screen name="Login" component={Login} />
+          <>
+            <Stack.Screen name="Login" component={Login} />
+            <Stack.Screen name="Cadastro" component={Cadastro} />
+          </>
         ) : isAdmin ? (
           <>
             <Stack.Screen name="AdminTabs" component={AdminTabs} />

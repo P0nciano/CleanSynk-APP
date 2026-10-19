@@ -6,3 +6,6 @@ node_modules
 
 # Build do esbuild (gerado na Vercel)
 /dist
+
+.vercel
+.env*
