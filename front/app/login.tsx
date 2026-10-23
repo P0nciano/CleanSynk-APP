@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "src/context/auth";
 
 export default function Login() {
+  const navigation = useNavigation();
   const { signIn, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -60,6 +62,10 @@ export default function Login() {
         ) : (
           <Text className="text-white font-bold text-base">Entrar</Text>
         )}
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => navigation.navigate("Cadastro" as never)} className="py-4 items-center">
+        <Text className="text-blue-700">Não tem conta? Cadastre-se</Text>
       </TouchableOpacity>
     </View>
   );

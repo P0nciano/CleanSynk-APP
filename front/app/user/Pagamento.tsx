@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useStripe } from 'src/lib/stripe';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { cancelarReserva, criarCheckout, criarPaymentIntent, criarReserva } from 'src/lib/api';
+import { cancelarReserva, criarCheckout, criarPaymentIntent, criarReserva, getPrograma } from 'src/lib/api';
 import { useAuth } from 'src/context/auth';
 
 const METODOS = [
@@ -24,7 +24,6 @@ export default function Pagamento() {
   const desconto = 0;
   const total = valor - desconto;
 
-  const LABEL_PROGRAMA: Record<string, string> = { lava_seca: 'Lava e Seca', secagem: 'Secagem' };
 
   async function handlePagar() {
     if (!user || !token) {
@@ -36,7 +35,7 @@ export default function Pagamento() {
     let reservaId: number | null = null;
     try {
       const agora = new Date();
-      const fim = new Date(agora.getTime() + 45 * 60 * 1000);
+      const fim = new Date(agora.getTime() + getPrograma(programa).minutos * 60 * 1000);
 
       const reserva = await criarReserva({
         maquina_id: maquina.maquina_id,
@@ -103,7 +102,7 @@ export default function Pagamento() {
         </View>
         <View className="flex-row justify-between mb-1">
           <Text className="text-gray-500 text-sm">Programa</Text>
-          <Text className="text-gray-700 text-sm font-semibold">{LABEL_PROGRAMA[programa] ?? programa}</Text>
+          <Text className="text-gray-700 text-sm font-semibold">{getPrograma(programa).nome}</Text>
         </View>
         <View className="flex-row justify-between mb-1">
           <Text className="text-gray-500 text-sm">Subtotal</Text>

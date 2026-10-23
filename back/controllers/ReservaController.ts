@@ -1,14 +1,20 @@
 import { Response } from "express";
-import { prisma, usuarioPublico, notificarAdmins } from "../lib/prisma";
+import { prisma, usuarioPublico, notificarProprietario, lavanderiasDo, adminDonoDaMaquina } from "../lib/prisma";
 import { AuthRequest, podeAcessar } from "../middlewares/autentica";
+import { stripe } from "./PagamentoController";
 
-const incluirReserva = { usuario: usuarioPublico, maquina: true, pagamentos: true };
+const incluirReserva = { usuario: usuarioPublico, maquina: { include: { lavanderia: true } }, pagamentos: true };
+
+// Cliente vê as próprias reservas; admin, as das lavanderias dele
+function podeVerReserva(req: AuthRequest, reserva: { usuario_id: number; maquina: { lavanderia: { proprietario_id: number } } }) {
+  return req.user?.id === reserva.usuario_id || (Boolean(req.admin) && reserva.maquina.lavanderia.proprietario_id === req.admin!.id);
+}
 
 export class ReservaController {
 
   async findAll(req: AuthRequest, res: Response) {
     try {
-      const reservas = await prisma.reserva.findMany({ include: incluirReserva });
+      const reservas = await prisma.reserva.findMany({ where: { maquina: { lavanderia: lavanderiasDo(req) } }, include: incluirReserva });
       return res.status(200).json(reservas);
     } catch (error) {
       return res.status(500).json({ error: "Erro ao buscar reservas" });
@@ -23,7 +29,7 @@ export class ReservaController {
         include: incluirReserva
       });
       if (!reserva) return res.status(404).json({ error: "Reserva não encontrada" });
-      if (!podeAcessar(req, reserva.usuario_id)) return res.status(403).json({ error: "Acesso negado" });
+      if (!podeVerReserva(req, reserva)) return res.status(403).json({ error: "Acesso negado" });
       return res.status(200).json(reserva);
     } catch (error) {
       return res.status(500).json({ error: "Erro ao buscar reserva" });
@@ -35,7 +41,8 @@ export class ReservaController {
       const usuarioId = Number(req.params.usuarioId);
       if (!podeAcessar(req, usuarioId)) return res.status(403).json({ error: "Acesso negado" });
       const reservas = await prisma.reserva.findMany({
-        where: { usuario_id: usuarioId },
+        // Admin consultando outro usuário só vê reservas nas lavanderias dele
+        where: { usuario_id: usuarioId, ...(req.user!.id !== usuarioId && { maquina: { lavanderia: lavanderiasDo(req) } }) },
         include: incluirReserva,
         orderBy: { data_inicio: "desc" }
       });
@@ -80,7 +87,7 @@ export class ReservaController {
         });
         await tx.maquina.update({ where: { maquina_id }, data: { status: "OCUPADA" } });
         await tx.notificacao.create({ data: { usuario_id, mensagem: "Reserva criada com sucesso" } });
-        await notificarAdmins(`Nova reserva criada — Máquina ${maquina.numero} (usuário #${usuario_id})`, tx);
+        await notificarProprietario(maquina_id, `Nova reserva criada — Máquina ${maquina.numero} (usuário #${usuario_id})`, tx);
         return nova;
       });
 
@@ -95,6 +102,9 @@ export class ReservaController {
     try {
       const { id } = req.params;
       const { status } = req.body;
+      const atual = await prisma.reserva.findUnique({ where: { reserva_id: Number(id) } });
+      if (!atual) return res.status(404).json({ error: "Reserva não encontrada" });
+      if (!(await adminDonoDaMaquina(req, atual.maquina_id))) return res.status(403).json({ error: "Acesso negado" });
       const reserva = await prisma.reserva.update({
         where: { reserva_id: Number(id) },
         data: { status }
@@ -108,9 +118,9 @@ export class ReservaController {
   async delete(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const reserva = await prisma.reserva.findUnique({ where: { reserva_id: Number(id) } });
+      const reserva = await prisma.reserva.findUnique({ where: { reserva_id: Number(id) }, include: { maquina: { include: { lavanderia: true } } } });
       if (!reserva) return res.status(404).json({ error: "Reserva não encontrada" });
-      if (!podeAcessar(req, reserva.usuario_id)) return res.status(403).json({ error: "Acesso negado" });
+      if (!podeVerReserva(req, reserva)) return res.status(403).json({ error: "Acesso negado" });
 
       // Só libera máquina se não houver outra reserva ativa
       const outraAtiva = await prisma.reserva.findFirst({
@@ -127,13 +137,66 @@ export class ReservaController {
           data: { status: "LIVRE" }
         });
 
-        await notificarAdmins(`Máquina liberada — Reserva #${reserva.reserva_id} encerrada`);
+        await notificarProprietario(reserva.maquina_id, `Máquina liberada — Reserva #${reserva.reserva_id} encerrada`);
       }
 
       await prisma.reserva.delete({ where: { reserva_id: Number(id) } });
       return res.status(200).json({ message: "Reserva deletada" });
     } catch (error) {
       return res.status(500).json({ error: "Erro ao deletar reserva" });
+    }
+  }
+
+  // Cancela a reserva e, se já foi paga, devolve o dinheiro pelo Stripe
+  async cancelar(req: AuthRequest, res: Response) {
+    try {
+      const reserva = await prisma.reserva.findUnique({
+        where: { reserva_id: Number(req.params.id) },
+        include: { pagamentos: true, maquina: { include: { lavanderia: true } } }
+      });
+      if (!reserva) return res.status(404).json({ error: "Reserva não encontrada" });
+      if (!podeVerReserva(req, reserva)) return res.status(403).json({ error: "Acesso negado" });
+      if (["CANCELADA", "CONCLUIDA"].includes(reserva.status)) {
+        return res.status(409).json({ error: "Esta reserva já foi encerrada" });
+      }
+
+      const pago = reserva.pagamentos.find((p) => p.status === "PAGO" && p.metodo === "stripe");
+      if (pago) {
+        // shortcut: o id do PaymentIntent não fica no banco, então busca pelo metadata (a busca do Stripe pode levar ~1 min para indexar); gravar o id no pagamento se isso incomodar
+        const { data } = await stripe.paymentIntents.search({
+          query: `metadata['reserva_id']:'${reserva.reserva_id}' AND status:'succeeded'`
+        });
+        if (!data[0]) return res.status(502).json({ error: "Pagamento ainda não localizado no Stripe. Tente de novo em 1 minuto." });
+        try {
+          await stripe.refunds.create({ payment_intent: data[0].id });
+        } catch (error: any) {
+          // Já estornado numa tentativa anterior que não chegou a gravar no banco: só conclui o cancelamento
+          if (error?.code !== "charge_already_refunded") throw error;
+        }
+      }
+
+      await prisma.$transaction(async (tx) => {
+        if (pago) await tx.pagamento.update({ where: { pagamento_id: pago.pagamento_id }, data: { status: "ESTORNADO" } });
+        await tx.reserva.update({ where: { reserva_id: reserva.reserva_id }, data: { status: "CANCELADA" } });
+
+        const outraAtiva = await tx.reserva.findFirst({
+          where: {
+            maquina_id: reserva.maquina_id,
+            reserva_id: { not: reserva.reserva_id },
+            status: { notIn: ["CANCELADA", "CONCLUIDA"] }
+          }
+        });
+        if (!outraAtiva) await tx.maquina.update({ where: { maquina_id: reserva.maquina_id }, data: { status: "LIVRE" } });
+
+        const valor = pago ? ` — R$ ${Number(pago.valor).toFixed(2)} estornado` : "";
+        await tx.notificacao.create({ data: { usuario_id: reserva.usuario_id, mensagem: `Reserva cancelada${valor}` } });
+        await notificarProprietario(reserva.maquina_id, `Reserva #${reserva.reserva_id} cancelada${valor} — Máquina ${reserva.maquina.numero}`, tx);
+      });
+
+      return res.status(200).json({ message: pago ? "Reserva cancelada e pagamento estornado" : "Reserva cancelada" });
+    } catch (error) {
+      console.error("Erro ao cancelar reserva:", error);
+      return res.status(500).json({ error: "Erro ao cancelar reserva" });
     }
   }
 
@@ -181,7 +244,7 @@ export class ReservaController {
           }
         });
 
-        await notificarAdmins(`Máquina ${reserva.maquina.numero} liberada — Reserva #${reserva.reserva_id} concluída`);
+        await notificarProprietario(reserva.maquina_id, `Máquina ${reserva.maquina.numero} liberada — Reserva #${reserva.reserva_id} concluída`);
       }
 
       if (expiradas.length > 0) {

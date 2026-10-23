@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { prisma, lavanderiasDo, adminDonoDaMaquina } from "../lib/prisma";
+import { AuthRequest } from "../middlewares/autentica";
 
 export class MaquinaController {
-  async create(req: Request, res: Response) {
+  async create(req: AuthRequest, res: Response) {
     try {
       const { lavanderia_id, numero, tipo, status } = req.body;
 
@@ -18,6 +19,9 @@ export class MaquinaController {
 
       if (!lavanderia) {
         return res.status(404).json({ error: "Lavanderia não encontrada" });
+      }
+      if (lavanderia.proprietario_id !== req.admin!.id) {
+        return res.status(403).json({ error: "Esta lavanderia não é sua" });
       }
 
       const maquina = await prisma.maquina.create({
@@ -35,9 +39,10 @@ export class MaquinaController {
     }
   }
 
-  async findAll(req: Request, res: Response) {
+  async findAll(req: AuthRequest, res: Response) {
     try {
       const maquinas = await prisma.maquina.findMany({
+        where: { lavanderia: lavanderiasDo(req) },
         include: {
           lavanderia: true,
           precos: true,
@@ -92,13 +97,16 @@ export class MaquinaController {
     }
   }
 
-  async updateStatus(req: Request, res: Response) {
+  async updateStatus(req: AuthRequest, res: Response) {
     try {
       const maquinaId = Number(req.params.id);
       const { status } = req.body;
 
       if (!status) {
         return res.status(400).json({ error: "status é obrigatório" });
+      }
+      if (!(await adminDonoDaMaquina(req, maquinaId))) {
+        return res.status(403).json({ error: "Esta máquina não é sua" });
       }
 
       const maquina = await prisma.maquina.update({

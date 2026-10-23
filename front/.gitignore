@@ -9,3 +9,6 @@ expo-env.d.ts
 
 # Build web (gerado na Vercel)
 dist/
+
+.vercel
+.env*

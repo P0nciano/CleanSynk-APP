@@ -41,10 +41,10 @@ export default function Lavanderias() {
   }, [token]);
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 24 }}>
+    <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 24 }}>
       <Header />
-      <View className="px-4 py-5">
-        <Text className="text-xl font-bold text-gray-800">Todas as Lavanderias</Text>
+      <View className="px-4 pt-6 pb-1">
+        <Text className="text-lg font-bold text-gray-900">Todas as lavanderias</Text>
       </View>
 
       {loading ? (
@@ -62,17 +62,17 @@ export default function Lavanderias() {
           <TouchableOpacity
             key={item.lavanderia_id}
             onPress={() => navigation.navigate('LavanderiaDetalhe', { lavanderia: item })}
-            className="mx-4 mt-4 bg-blue-50 rounded-3xl p-4 flex-row"
+            className="mx-4 mt-3 bg-white border border-gray-200 rounded-2xl p-3.5 flex-row"
           >
-            <View className="w-20 h-20 bg-gray-200 rounded-2xl items-center justify-center">
-              <Ionicons name="water" size={32} color="#1d4ed8" />
+            <View className="w-[72px] h-[72px] bg-blue-50 rounded-xl items-center justify-center">
+              <Ionicons name="water" size={26} color="#1d4ed8" />
             </View>
             <View className="ml-4 flex-1 justify-center">
-              <Text className="text-base font-bold text-gray-800">{item.nome}</Text>
-              <Text className="text-gray-500 text-sm mt-1">{item.endereco}</Text>
-              <View className="flex-row items-center self-start bg-yellow-100 px-2 py-1 rounded-full mt-2">
-                <Ionicons name="star" size={12} color="#FBBF24" />
-                <Text className="text-yellow-500 text-xs font-bold ml-1">4.5</Text>
+              <Text className="text-base font-bold text-gray-900">{item.nome}</Text>
+              <Text className="text-gray-500 text-sm mt-0.5" numberOfLines={2}>{item.endereco}</Text>
+              <View className="flex-row items-center self-start bg-amber-100 px-2 py-0.5 rounded-full mt-2">
+                <Ionicons name="star" size={11} color="#f59e0b" />
+                <Text className="text-amber-700 text-xs font-bold ml-1">4.5</Text>
               </View>
             </View>
           </TouchableOpacity>

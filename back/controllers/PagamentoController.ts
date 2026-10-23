@@ -1,14 +1,14 @@
 import { Request, Response } from "express";
-import { prisma, usuarioPublico } from "../lib/prisma";
+import { prisma, usuarioPublico, lavanderiasDo } from "../lib/prisma";
 import Stripe from "stripe";
 import { AuthRequest } from "../middlewares/autentica";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2022-11-15",
 });
 
-// shortcut: preço fixo por programa (igual ao da tela EscolherMaquina); trocar pela tabela Preco quando cada máquina tiver preços cadastrados
-const PRECO_PROGRAMA: Record<string, number> = { lava_seca: 30, secagem: 18 };
+// shortcut: preço fixo por programa (igual ao PROGRAMAS de front/src/lib/api.ts); trocar pela tabela Preco quando cada máquina tiver preços cadastrados
+const PRECO_PROGRAMA: Record<string, number> = { lavagem: 20, secagem: 18, lava_seca: 30 };
 
 // Valida a cobrança (dono da reserva, ainda não paga) e calcula o valor no servidor.
 // Devolve os dados ou já responde o erro e devolve null.
@@ -165,9 +165,10 @@ export class PagamentoController {
     }
   }
 
-  async findAll(req: Request, res: Response) {
+  async findAll(req: AuthRequest, res: Response) {
     try {
       const pagamentos = await prisma.pagamento.findMany({
+        where: { reserva: { maquina: { lavanderia: lavanderiasDo(req) } } },
         include: {
           reserva: {
             include: {

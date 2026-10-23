@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { prisma, lavanderiasDo } from "../lib/prisma";
+import { AuthRequest } from "../middlewares/autentica";
 
 type OcorrenciaInput = {
   lavanderia_id?: unknown;
@@ -67,11 +68,47 @@ function extractJSON(text: string): unknown {
   throw new Error("Nenhum JSON válido encontrado na resposta da IA");
 }
 
-async function analisarComOpenRouter(ocorrencias: OcorrenciaNormalizada[]) {
+// Modelos gratuitos somem do OpenRouter sem aviso: tenta em ordem e cai no próximo se um falhar
+const MODELOS_FALLBACK = ["nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"];
+
+function modelosEmOrdem() {
+  const extras = process.env.OPENROUTER_FALLBACK_MODELS?.split(",").map((m) => m.trim()).filter(Boolean);
+  return [...new Set([process.env.OPENROUTER_MODEL, ...(extras?.length ? extras : MODELOS_FALLBACK)].filter(Boolean) as string[])];
+}
+
+// Último recurso, sem IA: aplica os mesmos critérios descritos no prompt
+function analisarPorRegras(ocorrencias: OcorrenciaNormalizada[]) {
+  return ocorrencias.map((o, indice) => {
+    const nivel =
+      o.tempoParadoHoras > 4 && (o.envolveCliente || o.qtdAfetados > 10) ? "critica"
+      : o.tempoParadoHoras >= 2 || o.envolveCliente || o.qtdAfetados > 10 ? "alta"
+      : o.tempoParadoHoras >= 1 ? "media"
+      : "baixa";
+    const prioridade = { critica: "Ação imediata", alta: "Resolver em até 2h", media: "Resolver hoje", baixa: "Resolver quando possível" }[nivel];
+    return {
+      indice,
+      nivelCriticidade: nivel,
+      prioridade,
+      recomendacao: `Verificar "${o.titulo}" no setor ${o.setor}.`,
+      justificativa: `Parado ${o.tempoParadoHoras}h, ${o.qtdAfetados} afetado(s)${o.envolveCliente ? ", envolve cliente" : ""}. (Análise por regras: IA indisponível)`,
+    };
+  });
+}
+
+async function analisarComFallback(ocorrencias: OcorrenciaNormalizada[]) {
+  for (const modelo of modelosEmOrdem()) {
+    try {
+      return { modelo, origemAnalise: "openrouter", analiseIA: await analisarComOpenRouter(ocorrencias, modelo) };
+    } catch (error) {
+      console.error(`Modelo ${modelo} falhou:`, error instanceof Error ? error.message : error);
+    }
+  }
+  return { modelo: "regras", origemAnalise: "regras", analiseIA: analisarPorRegras(ocorrencias) };
+}
+
+async function analisarComOpenRouter(ocorrencias: OcorrenciaNormalizada[], model: string) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY não configurada");
-
-  const model = process.env.OPENROUTER_MODEL || "openai/gpt-oss-120b:free";
 
   const prompt = `Você é um especialista em gestão de lavanderias.
 Analise cada ocorrência abaixo e retorne um array JSON com exatamente ${ocorrencias.length} objetos.
@@ -107,7 +144,7 @@ Ocorrências: ${JSON.stringify(ocorrencias)}`;
         { role: "user", content: prompt },
       ],
       temperature: 0.2,
-      max_tokens: 1500,
+      max_tokens: 6000,
     }),
   });
 
@@ -123,12 +160,11 @@ Ocorrências: ${JSON.stringify(ocorrencias)}`;
   const content = data.choices?.[0]?.message?.content?.trim();
   if (!content) throw new Error("OpenRouter não retornou conteúdo");
 
-  console.log("RESPOSTA IA:", content);
   return extractJSON(content);
 }
 
 export class AssistenteIAController {
-  async analisarOcorrencias(req: Request, res: Response) {
+  async analisarOcorrencias(req: AuthRequest, res: Response) {
     try {
       const ocorrencias: OcorrenciaInput[] = Array.isArray(req.body?.ocorrencias)
         ? (req.body.ocorrencias as OcorrenciaInput[])
@@ -146,10 +182,18 @@ export class AssistenteIAController {
         return res.status(400).json({ error: "Nenhuma ocorrência válida foi informada" });
       }
 
+      // Ocorrência sem lavanderia vai para a primeira do admin; lavanderia de outro dono é recusada
+      const minhas = (await prisma.lavanderia.findMany({ where: lavanderiasDo(req), select: { lavanderia_id: true }, orderBy: { lavanderia_id: "asc" } }))
+        .map((l) => l.lavanderia_id);
+      if (minhas.length === 0) return res.status(400).json({ error: "Cadastre uma lavanderia antes de registrar ocorrências" });
+      if (normalizadas.some((o) => o.lavanderia_id && !minhas.includes(o.lavanderia_id))) {
+        return res.status(403).json({ error: "Ocorrência em lavanderia que não é sua" });
+      }
+
       // Salva no banco (sem campo impacto — IA vai decidir)
       await prisma.ocorrencia.createMany({
         data: normalizadas.map((o) => ({
-          lavanderia_id: o.lavanderia_id ?? 1,
+          lavanderia_id: o.lavanderia_id ?? minhas[0],
           titulo: o.titulo,
           descricao: o.descricao,
           categoria: o.categoria,
@@ -161,19 +205,11 @@ export class AssistenteIAController {
         })),
       });
 
-      let analiseIA: unknown;
-      try {
-        analiseIA = await analisarComOpenRouter(normalizadas);
-      } catch (error) {
-        console.error("Erro OpenRouter:", error);
-        return res.status(500).json({
-          error: error instanceof Error ? error.message : "Erro ao consultar a IA.",
-        });
-      }
+      const { modelo, origemAnalise, analiseIA } = await analisarComFallback(normalizadas);
 
       return res.status(200).json({
-        modelo: process.env.OPENROUTER_MODEL || "openai/gpt-oss-120b:free",
-        origemAnalise: "openrouter",
+        modelo,
+        origemAnalise,
         resumo: {
           totalOcorrencias: normalizadas.length,
           analiseIA,
@@ -185,9 +221,10 @@ export class AssistenteIAController {
     }
   }
 
-  async analisarOcorrenciasBanco(req: Request, res: Response) {
+  async analisarOcorrenciasBanco(req: AuthRequest, res: Response) {
     try {
       const ocorrenciasBanco = await prisma.ocorrencia.findMany({
+        where: { lavanderia: lavanderiasDo(req) },
         include: { lavanderia: true },
         orderBy: { createdAt: "desc" },
       });
@@ -206,19 +243,11 @@ export class AssistenteIAController {
         qtdAfetados: item.qtdAfetados,
       }));
 
-      let analiseIA: unknown;
-      try {
-        analiseIA = await analisarComOpenRouter(normalizadas);
-      } catch (error) {
-        console.error("Erro OpenRouter:", error);
-        return res.status(500).json({
-          error: error instanceof Error ? error.message : "Erro ao consultar a IA.",
-        });
-      }
+      const { modelo, origemAnalise, analiseIA } = await analisarComFallback(normalizadas);
 
       return res.status(200).json({
-        modelo: process.env.OPENROUTER_MODEL || "openai/gpt-oss-120b:free",
-        origemAnalise: "openrouter",
+        modelo,
+        origemAnalise,
         totalOcorrencias: ocorrenciasBanco.length,
         ocorrencias: ocorrenciasBanco,
         analiseIA,
