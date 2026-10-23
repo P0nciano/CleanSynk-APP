@@ -2,6 +2,17 @@ import { Request, Response } from "express";
 import { prisma, lavanderiasDo } from "../lib/prisma";
 import { AuthRequest } from "../middlewares/autentica";
 
+// Foto enviada pelo app em base64 (com ou sem "data:image/...;base64,"). Só JPEG/PNG até 600 KB.
+function lerFoto(foto: unknown): Buffer | null | "invalida" {
+  if (foto === undefined || foto === null || foto === "") return null;
+  if (typeof foto !== "string") return "invalida";
+  const bytes = Buffer.from(foto.replace(/^data:image\/\w+;base64,/, ""), "base64");
+  const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const png = bytes.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  if ((!jpeg && !png) || bytes.length > 600 * 1024) return "invalida";
+  return bytes;
+}
+
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
 }
@@ -143,6 +154,11 @@ export class LavanderiaController {
         });
       }
 
+      const foto = lerFoto(req.body.foto);
+      if (foto === "invalida") {
+        return res.status(400).json({ error: "Foto inválida: use JPEG ou PNG de até 600 KB" });
+      }
+
       const apenasUmaCoordenadaFoiInformada =
         (latitude === undefined && longitude !== undefined) ||
         (latitude !== undefined && longitude === undefined);
@@ -189,6 +205,7 @@ export class LavanderiaController {
           latitude: latitudeFinal,
           longitude: longitudeFinal,
           proprietario_id: Number(proprietario_id),
+          ...(foto && { foto: new Uint8Array(foto), foto_versao: 1 }),
         },
       });
 
@@ -196,6 +213,75 @@ export class LavanderiaController {
     } catch (error) {
       console.error("Erro ao cadastrar lavanderia:", error);
       return res.status(500).json({ error: "Erro ao cadastrar lavanderia" });
+    }
+  }
+
+  // GET /lavanderias/:id/foto — pública para o <Image> carregar sem token; a URL leva ?v=foto_versao
+  async foto(req: Request, res: Response) {
+    try {
+      const lavanderia = await prisma.lavanderia.findUnique({
+        where: { lavanderia_id: Number(req.params.id) || 0 },
+        select: { foto: true },
+      });
+      if (!lavanderia?.foto) return res.status(404).json({ error: "Lavanderia sem foto" });
+      const bytes = Buffer.from(lavanderia.foto);
+      res.setHeader("Content-Type", bytes[0] === 0x89 ? "image/png" : "image/jpeg");
+      res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+      return res.send(bytes);
+    } catch (error) {
+      return res.status(500).json({ error: "Erro ao buscar foto" });
+    }
+  }
+
+  // GET /lavanderias/cidade?lat=&lon= — cidade do usuário para o cabeçalho do app (Nominatim, gratuito)
+  async cidade(req: Request, res: Response) {
+    try {
+      const lat = Number(req.query.lat);
+      const lon = Number(req.query.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+        return res.status(400).json({ error: "lat e lon válidos são obrigatórios" });
+      }
+
+      const url = new URL("https://nominatim.openstreetmap.org/reverse");
+      url.searchParams.set("lat", String(lat));
+      url.searchParams.set("lon", String(lon));
+      url.searchParams.set("format", "json");
+      url.searchParams.set("zoom", "10");
+      url.searchParams.set("accept-language", "pt-BR");
+      const resposta = await fetch(url, { headers: { "User-Agent": "CleanSynk/1.0 (academic project)" } });
+      if (!resposta.ok) return res.status(502).json({ error: "Falha ao consultar a localização" });
+
+      const { address = {} } = (await resposta.json()) as { address?: Record<string, string> };
+      const cidade = address.city || address.town || address.village || address.municipality || address.county;
+      if (!cidade) return res.status(404).json({ error: "Cidade não encontrada" });
+      // "BR-RS" -> "RS"
+      const uf = address["ISO3166-2-lvl4"]?.split("-")[1] ?? address.state ?? "";
+      return res.status(200).json({ cidade, uf });
+    } catch (error) {
+      console.error("Erro ao buscar cidade:", error);
+      return res.status(500).json({ error: "Erro ao buscar cidade" });
+    }
+  }
+
+  // PATCH /lavanderias/:id/foto — só o dono; foto null remove
+  async atualizarFoto(req: AuthRequest, res: Response) {
+    try {
+      const lavanderia = await prisma.lavanderia.findUnique({ where: { lavanderia_id: Number(req.params.id) || 0 } });
+      if (!lavanderia) return res.status(404).json({ error: "Lavanderia não encontrada" });
+      if (lavanderia.proprietario_id !== req.admin!.id) return res.status(403).json({ error: "Esta lavanderia não é sua" });
+
+      const foto = lerFoto(req.body?.foto);
+      if (foto === "invalida") return res.status(400).json({ error: "Foto inválida: use JPEG ou PNG de até 600 KB" });
+
+      const atualizada = await prisma.lavanderia.update({
+        where: { lavanderia_id: lavanderia.lavanderia_id },
+        // A versão nova muda a URL da foto, e o app baixa a imagem nova
+        data: foto ? { foto: new Uint8Array(foto), foto_versao: { increment: 1 } } : { foto: null, foto_versao: 0 },
+      });
+      return res.status(200).json(atualizada);
+    } catch (error) {
+      console.error("Erro ao salvar foto:", error);
+      return res.status(500).json({ error: "Erro ao salvar foto" });
     }
   }
 

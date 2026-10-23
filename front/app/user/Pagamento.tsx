@@ -6,10 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { cancelarReserva, criarCheckout, criarPaymentIntent, criarReserva, getPrograma } from 'src/lib/api';
 import { useAuth } from 'src/context/auth';
-
-const METODOS = [
-  { id: 'cartao', label: 'Cartão de Crédito', sublabel: 'Pagamento seguro via Stripe', icon: 'card-outline' },
-];
+import CabecalhoTela from 'src/components/CabecalhoTela';
 
 export default function Pagamento() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -18,12 +15,8 @@ export default function Pagamento() {
   const { user, token } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
-  const [metodoPagamento, setMetodoPagamento] = useState('cartao');
   const [loading, setLoading] = useState(false);
-
-  const desconto = 0;
-  const total = valor - desconto;
-
+  const total: number = valor;
 
   async function handlePagar() {
     if (!user || !token) {
@@ -80,79 +73,50 @@ export default function Pagamento() {
     }
   }
 
+  const reais = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
+  const linhas = [
+    ['Lavanderia', lavanderia.nome],
+    ['Máquina', `Máquina ${String(maquina.numero).padStart(2, '0')}`],
+    ['Programa', `${getPrograma(programa).nome} · ${getPrograma(programa).minutos} min`],
+  ];
+
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 32 }}>
-      <View className="bg-[#1565C0] pt-12 pb-6 px-5">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="flex-row items-center mb-4">
-          <Ionicons name="arrow-back" size={22} color="white" />
-          <Text className="text-white ml-2 font-semibold">Pagamento</Text>
-        </TouchableOpacity>
-      </View>
+    <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 32 }}>
+      <CabecalhoTela titulo="Pagamento" subtitulo="Confira o resumo e pague com segurança" />
 
-      {/* Resumo */}
-      <View className="mx-4 mt-4 bg-blue-50 rounded-2xl p-4">
-        <Text className="text-gray-800 font-bold text-base mb-3">Resumo</Text>
-        <View className="flex-row justify-between mb-1">
-          <Text className="text-gray-500 text-sm">Lavanderia</Text>
-          <Text className="text-gray-700 text-sm font-semibold">{lavanderia.nome}</Text>
-        </View>
-        <View className="flex-row justify-between mb-1">
-          <Text className="text-gray-500 text-sm">Máquina</Text>
-          <Text className="text-gray-700 text-sm font-semibold">Máquina {String(maquina.numero).padStart(2, '0')}</Text>
-        </View>
-        <View className="flex-row justify-between mb-1">
-          <Text className="text-gray-500 text-sm">Programa</Text>
-          <Text className="text-gray-700 text-sm font-semibold">{getPrograma(programa).nome}</Text>
-        </View>
-        <View className="flex-row justify-between mb-1">
-          <Text className="text-gray-500 text-sm">Subtotal</Text>
-          <Text className="text-gray-700 text-sm">R$ {valor.toFixed(2)}</Text>
-        </View>
-        {desconto > 0 && (
-          <View className="flex-row justify-between mb-1">
-            <Text className="text-gray-500 text-sm">Desconto (30%)</Text>
-            <Text className="text-green-600 text-sm">-R$ {desconto.toFixed(2)}</Text>
+      <View className="mx-4 mt-6 bg-white border border-gray-200 rounded-2xl p-4">
+        <Text className="text-gray-900 font-bold text-base mb-3">Resumo</Text>
+        {linhas.map(([rotulo, valorLinha]) => (
+          <View key={rotulo} className="flex-row justify-between mb-2">
+            <Text className="text-gray-500 text-sm">{rotulo}</Text>
+            <Text className="text-gray-800 text-sm font-semibold shrink ml-4 text-right">{valorLinha}</Text>
           </View>
-        )}
-        <View className="border-t border-gray-200 mt-2 pt-2 flex-row justify-between">
-          <Text className="text-gray-800 font-bold">Total</Text>
-          <Text className="text-blue-700 font-bold text-lg">R$ {total.toFixed(2)}</Text>
+        ))}
+        <View className="border-t border-gray-100 mt-2 pt-3 flex-row justify-between items-center">
+          <Text className="text-gray-900 font-bold">Total</Text>
+          <Text className="text-blue-700 font-bold text-xl">{reais(total)}</Text>
         </View>
       </View>
 
-      {/* Forma de pagamento */}
-      <View className="mx-4 mt-4">
-        <Text className="text-gray-800 font-bold text-base mb-3">Forma de pagamento</Text>
-        {METODOS.map((m) => (
-          <TouchableOpacity
-            key={m.id}
-            onPress={() => setMetodoPagamento(m.id)}
-            className={`flex-row items-center p-4 rounded-2xl mb-2 border-2 ${metodoPagamento === m.id ? 'border-blue-700 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
-          >
-            <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${metodoPagamento === m.id ? 'bg-blue-700' : 'bg-gray-200'}`}>
-              <Ionicons name={m.icon as any} size={20} color={metodoPagamento === m.id ? 'white' : '#6b7280'} />
-            </View>
-            <View className="flex-1">
-              <Text className="text-gray-800 font-semibold">{m.label}</Text>
-              <Text className="text-gray-400 text-xs">{m.sublabel}</Text>
-            </View>
-            <View className={`w-5 h-5 rounded-full border-2 items-center justify-center ${metodoPagamento === m.id ? 'border-blue-700' : 'border-gray-300'}`}>
-              {metodoPagamento === m.id && <View className="w-2.5 h-2.5 rounded-full bg-blue-700" />}
-            </View>
-          </TouchableOpacity>
-        ))}
+      <Text className="mx-4 mt-5 mb-3 text-gray-900 font-bold text-base">Forma de pagamento</Text>
+      <View className="mx-4 bg-white border-2 border-blue-700 rounded-2xl p-4 flex-row items-center">
+        <View className="w-10 h-10 rounded-xl bg-blue-50 items-center justify-center mr-3">
+          <Ionicons name="card-outline" size={20} color="#1d4ed8" />
+        </View>
+        <View className="flex-1">
+          <Text className="text-gray-900 font-semibold">Cartão de crédito</Text>
+          <Text className="text-gray-400 text-xs">Pagamento seguro via Stripe</Text>
+        </View>
+        <Ionicons name="checkmark-circle" size={22} color="#1d4ed8" />
       </View>
 
-      <TouchableOpacity
-        onPress={handlePagar}
-        disabled={loading}
-        className="mx-4 mt-4 bg-[#1565C0] rounded-2xl py-4 items-center"
-      >
-        {loading ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <Text className="text-white font-bold text-base">Pagar R$ {total.toFixed(2)}</Text>
-        )}
+      <View className="mx-4 mt-3 flex-row items-start">
+        <Ionicons name="time-outline" size={14} color="#6b7280" style={{ marginTop: 1 }} />
+        <Text className="text-gray-500 text-xs ml-1 flex-1">A máquina fica reservada por 30 minutos enquanto você paga.</Text>
+      </View>
+
+      <TouchableOpacity onPress={handlePagar} disabled={loading} className="mx-4 mt-5 bg-blue-700 rounded-2xl py-4 items-center">
+        {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-base">Pagar {reais(total)}</Text>}
       </TouchableOpacity>
     </ScrollView>
   );

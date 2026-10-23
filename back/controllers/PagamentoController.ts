@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { prisma, usuarioPublico, lavanderiasDo } from "../lib/prisma";
+import { prisma, usuarioPublico, lavanderiasDo, PRAZO_PAGAMENTO_MIN } from "../lib/prisma";
 import Stripe from "stripe";
 import { AuthRequest } from "../middlewares/autentica";
 
@@ -91,6 +91,8 @@ export class PagamentoController {
           },
         }],
         payment_intent_data: { metadata: cobranca.metadata },
+        // Mesmo prazo da reserva não paga (liberarExpiradas); 30 min é o mínimo do Stripe
+        expires_at: Math.floor(Date.now() / 1000) + PRAZO_PAGAMENTO_MIN * 60,
         success_url: `${site}/?pagamento=sucesso`,
         cancel_url: `${site}/?cancelar_reserva=${cobranca.metadata.reserva_id}`,
       });
@@ -118,7 +120,19 @@ export class PagamentoController {
         const reservaId = intent.metadata?.reserva_id ? Number(intent.metadata.reserva_id) : undefined;
         const amount = (intent.amount_received ?? intent.amount) / 100;
 
-        if (reservaId) {
+        const reservaPaga = reservaId ? await prisma.reserva.findUnique({ where: { reserva_id: reservaId } }) : null;
+        // Pagou depois que a reserva já tinha sido cancelada (prazo vencido): devolve o dinheiro
+        if (reservaPaga?.status === "CANCELADA") {
+          await stripe.refunds.create({ payment_intent: intent.id }).catch((e) => {
+            if (e?.code !== "charge_already_refunded") throw e;
+          });
+          await prisma.pagamento.create({
+            data: { reserva_id: reservaPaga.reserva_id, valor: amount, status: "ESTORNADO", metodo: "stripe", data_pagamento: new Date() },
+          });
+          await prisma.notificacao.create({
+            data: { usuario_id: reservaPaga.usuario_id, mensagem: `Pagamento devolvido: a reserva #${reservaPaga.reserva_id} já tinha expirado` },
+          });
+        } else if (reservaId) {
           const pagamentoExistente = await prisma.pagamento.findFirst({
             where: { reserva_id: reservaId, status: "PAGO", metodo: "stripe" },
           });

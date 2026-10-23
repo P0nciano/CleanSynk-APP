@@ -49,6 +49,10 @@ model Lavanderia {
   preco_secagem   Decimal? @db.Decimal(10, 2)
   preco_lava_seca Decimal? @db.Decimal(10, 2)
 
+  // Foto opcional (JPEG/PNG reduzido no app). Fica fora das consultas (omit em lib/prisma); servida em GET /lavanderias/:id/foto
+  foto            Bytes?
+  foto_versao     Int      @default(0)
+
   // Relacionamentos
   maquinas        Maquina[]
   ocorrencia      Ocorrencia[]
@@ -120,9 +124,10 @@ model Pagamento {
   @@map("pagamento")
 }
 
-// Códigos de admin errados no cadastro (limite de tentativas)
-model TentativaAdmin {
+// Tentativas erradas de login e de código de admin (limite de tentativas, ver lib/tentativas)
+model Tentativa {
   tentativa_id Int      @id @default(autoincrement())
+  motivo       String   @default("codigo_admin")
   ip           String
   createdAt    DateTime @default(now())
 

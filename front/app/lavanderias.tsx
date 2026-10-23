@@ -5,8 +5,9 @@ import { getLavanderias, type Lavanderia } from 'src/lib/api';
 import { useSearch } from 'src/context/search';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/context/auth';
+import CardLavanderia from 'src/components/CardLavanderia';
+import { minhaPosicao, ordenarPorDistancia } from 'src/lib/localizacao';
 
 export default function Lavanderias() {
   const [lavanderias, setLavanderias] = useState<Lavanderia[]>([]);
@@ -30,6 +31,9 @@ export default function Lavanderias() {
         setError('');
         const resultado = await getLavanderias(token!);
         if (ativo) setLavanderias(resultado);
+        minhaPosicao()
+          .then((p) => { if (ativo) setLavanderias(ordenarPorDistancia(resultado, p)); })
+          .catch(() => undefined);
       } catch (e) {
         if (ativo) setError(e instanceof Error ? e.message : 'Falha ao carregar');
       } finally {
@@ -59,23 +63,7 @@ export default function Lavanderias() {
         </View>
       ) : (
         lavanderiasFiltradas.map((item) => (
-          <TouchableOpacity
-            key={item.lavanderia_id}
-            onPress={() => navigation.navigate('LavanderiaDetalhe', { lavanderia: item })}
-            className="mx-4 mt-3 bg-white border border-gray-200 rounded-2xl p-3.5 flex-row"
-          >
-            <View className="w-[72px] h-[72px] bg-blue-50 rounded-xl items-center justify-center">
-              <Ionicons name="water" size={26} color="#1d4ed8" />
-            </View>
-            <View className="ml-4 flex-1 justify-center">
-              <Text className="text-base font-bold text-gray-900">{item.nome}</Text>
-              <Text className="text-gray-500 text-sm mt-0.5" numberOfLines={2}>{item.endereco}</Text>
-              <View className="flex-row items-center self-start bg-amber-100 px-2 py-0.5 rounded-full mt-2">
-                <Ionicons name="star" size={11} color="#f59e0b" />
-                <Text className="text-amber-700 text-xs font-bold ml-1">4.5</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+          <CardLavanderia key={item.lavanderia_id} item={item} onPress={() => navigation.navigate('LavanderiaDetalhe', { lavanderia: item })} />
         ))
       )}
     </ScrollView>

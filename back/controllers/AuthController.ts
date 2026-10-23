@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { TipoUsuario } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
+import { bloqueado, ipDe, registrarFalha } from "../lib/tentativas";
+
+const MUITAS_TENTATIVAS = "Muitas tentativas de login. Espere 15 minutos e tente de novo.";
 
 dotenv.config();
 const jwtSecret = process.env.JWT_SECRET;
@@ -21,14 +24,12 @@ export class AuthController {
         return res.status(500).json({ error: "JWT_SECRET não configurado" });
       }
 
+      const ip = ipDe(req);
+      if (await bloqueado("login", ip, 10)) return res.status(429).json({ error: MUITAS_TENTATIVAS });
+
       const usuario = await prisma.usuario.findFirst({ where: { email } });
-
-      if (!usuario) {
-        return res.status(401).json({ error: "Usuário não encontrado" });
-      }
-
-      const senhaValida = await bcrypt.compare(senha, usuario.senha);
-      if (!senhaValida) {
+      if (!usuario || !(await bcrypt.compare(senha, usuario.senha))) {
+        await registrarFalha("login", ip);
         return res.status(401).json({ error: "E-mail ou senha incorretos" });
       }
 
@@ -65,11 +66,15 @@ export class AuthController {
         });
       }
 
+      const ip = ipDe(req);
+      if (await bloqueado("login", ip, 10)) return res.status(429).json({ error: MUITAS_TENTATIVAS });
+
       const usuario = await prisma.usuario.findUnique({
         where: { email },
       });
 
       if (!usuario) {
+        await registrarFalha("login", ip);
         return res.status(401).json({
           error: "Email ou senha inválidos",
         });
@@ -84,6 +89,7 @@ export class AuthController {
       const senhaValida = await bcrypt.compare(password, usuario.senha);
 
       if (!senhaValida) {
+        await registrarFalha("login", ip);
         return res.status(401).json({
           error: "Email ou senha inválidos",
         });

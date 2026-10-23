@@ -8,6 +8,8 @@ import { useSearch } from 'src/context/search';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from 'src/context/auth';
+import CardLavanderia from 'src/components/CardLavanderia';
+import { minhaPosicao, ordenarPorDistancia } from 'src/lib/localizacao';
 import { fundoGradiente } from 'src/components/AdminLayout';
 
 const OFERTAS = [
@@ -39,6 +41,10 @@ export default function Home() {
         setError('');
         const todas = await getLavanderias(token!);
         if (ativo) setLavanderias(todas.slice(0, 3));
+        // Com a localização, troca pelas 3 mais perto (sem travar a lista enquanto o usuário responde à permissão)
+        minhaPosicao()
+          .then((p) => { if (ativo) setLavanderias(ordenarPorDistancia(todas, p).slice(0, 3)); })
+          .catch(() => undefined);
       } catch (e) {
         if (ativo) setError(e instanceof Error ? e.message : 'Falha ao carregar');
       } finally {
@@ -68,7 +74,7 @@ export default function Home() {
         </View>
         <Text className="text-white text-[32px] font-extrabold mt-3">Ganhe 30% off</Text>
         <Text className="text-blue-100 mt-1">Na 1ª lavagem · Lavanderia Central</Text>
-        <TouchableOpacity className="bg-white self-start px-6 py-3 rounded-full mt-5">
+        <TouchableOpacity onPress={() => navigation.navigate('MeusCupons')} className="bg-white self-start px-6 py-3 rounded-full mt-5">
           <Text className="text-blue-700 font-bold">Resgatar</Text>
         </TouchableOpacity>
       </View>
@@ -94,23 +100,7 @@ export default function Home() {
         </View>
       ) : (
         lavanderiasFiltradas.map((item) => (
-          <TouchableOpacity
-            key={item.lavanderia_id}
-            onPress={() => navigation.navigate('LavanderiaDetalhe', { lavanderia: item })}
-            className="mx-4 mt-3 bg-white border border-gray-200 rounded-2xl p-3.5 flex-row"
-          >
-            <View className="w-[72px] h-[72px] bg-blue-50 rounded-xl items-center justify-center">
-              <Ionicons name="water" size={26} color="#1d4ed8" />
-            </View>
-            <View className="ml-4 flex-1 justify-center">
-              <Text className="text-base font-bold text-gray-900">{item.nome}</Text>
-              <Text className="text-gray-500 text-sm mt-0.5" numberOfLines={2}>{item.endereco}</Text>
-              <View className="flex-row items-center self-start bg-amber-100 px-2 py-0.5 rounded-full mt-2">
-                <Ionicons name="star" size={11} color="#f59e0b" />
-                <Text className="text-amber-700 text-xs font-bold ml-1">4.5</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+          <CardLavanderia key={item.lavanderia_id} item={item} onPress={() => navigation.navigate('LavanderiaDetalhe', { lavanderia: item })} />
         ))
       )}
 
@@ -130,7 +120,7 @@ export default function Home() {
                 </View>
                 <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#1f2937' }}>{o.titulo}</Text>
                 <Text style={{ color: '#6b7280', fontSize: 14, marginTop: 4 }}>{o.descricao}</Text>
-                <TouchableOpacity style={{ backgroundColor: '#1565C0', borderRadius: 12, paddingVertical: 10, alignItems: 'center', marginTop: 12 }}>
+                <TouchableOpacity onPress={() => { setModalOfertas(false); navigation.navigate('MeusCupons'); }} style={{ backgroundColor: '#1d4ed8', borderRadius: 12, paddingVertical: 10, alignItems: 'center', marginTop: 12 }}>
                   <Text style={{ color: 'white', fontWeight: 'bold' }}>Resgatar</Text>
                 </TouchableOpacity>
               </View>

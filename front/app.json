@@ -33,6 +33,18 @@
     },
     "plugins": [
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "O CleanSynk usa suas fotos para você colocar a foto da lavanderia."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O CleanSynk usa sua localização para mostrar a sua cidade."
+        }
+      ],
+      [
         "@stripe/stripe-react-native",
         {
           "merchantIdentifier": "",

@@ -8,6 +8,7 @@ type AuthContextValue = {
   loading: boolean;
   signIn: (email: string, senha: string) => Promise<AuthUser>;
   signOut: () => Promise<void>;
+  atualizarUsuario: (dados: AuthUser) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -32,9 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signIn(email: string, senha: string) {
     const response = await loginRequest(email, senha);
-    console.log("TOKEN RECEBIDO:", response.token);
     await Promise.all([saveToken(response.token), saveUser(response)]);
-     console.log("TOKEN SALVO:", await getStoredToken());
     setToken(response.token);
     setUser(response);
     return response;
@@ -46,8 +45,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }
 
+  // Depois de editar o perfil: grava e já mostra o nome/e-mail novos em todas as telas
+  async function atualizarUsuario(dados: AuthUser) {
+    await saveUser(dados);
+    setUser(dados);
+  }
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, token, loading, signIn, signOut }),
+    () => ({ user, token, loading, signIn, signOut, atualizarUsuario }),
     [loading, token, user],
   );
 

@@ -4,80 +4,63 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getPrograma } from 'src/lib/api';
+import CabecalhoTela from 'src/components/CabecalhoTela';
 
-const ETAPAS = [
-  { id: 1, label: 'Pagamento confirmado' },
-  { id: 2, label: 'Máquina em andamento' },
-  { id: 3, label: 'Secagem' },
-  { id: 4, label: 'Concluído' },
-];
+// Etapas de cada programa; as do meio dividem o tempo do programa em partes iguais
+const ETAPAS_DO_PROGRAMA: Record<string, string[]> = {
+  lavagem: ['Lavando'],
+  secagem: ['Secando'],
+  lava_seca: ['Lavando', 'Secando'],
+};
 
 export default function StatusLavagem() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<any>();
-  const { lavanderia, maquina, valor, programa } = route.params;
+  const { lavanderia, maquina, programa } = route.params;
 
-  const [etapaAtual, setEtapaAtual] = useState(1);
-  const [segundos, setSegundos] = useState(getPrograma(programa).minutos * 60);
+  const total = getPrograma(programa).minutos * 60;
+  const [segundos, setSegundos] = useState(total);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSegundos((s) => {
-        if (s <= 0) { clearInterval(timer); return 0; }
-        return s - 1;
-      });
-      // Avança etapa a cada ~11 minutos (simulado)
-      setEtapaAtual((e) => {
-        if (segundos < 34 * 60 && e < 2) return 2;
-        if (segundos < 22 * 60 && e < 3) return 3;
-        if (segundos <= 0 && e < 4) return 4;
-        return e;
-      });
-    }, 1000);
+    const timer = setInterval(() => setSegundos((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(timer);
-  }, [segundos]);
+  }, []);
+
+  const meio = ETAPAS_DO_PROGRAMA[programa] ?? ETAPAS_DO_PROGRAMA.lava_seca;
+  const etapas = ['Pagamento confirmado', ...meio, 'Concluído'];
+  const atual = segundos === 0 ? etapas.length - 1 : 1 + Math.min(meio.length - 1, Math.floor(((total - segundos) / total) * meio.length));
 
   const min = Math.floor(segundos / 60).toString().padStart(2, '0');
   const sec = (segundos % 60).toString().padStart(2, '0');
+  const numero = String(maquina?.numero ?? 0).padStart(2, '0');
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 32 }}>
-      <View className="bg-[#1565C0] pt-12 pb-6 px-5">
-        <Text className="text-white text-xl font-bold">Status da Lavagem</Text>
-        <Text className="text-blue-200 text-sm mt-1">{lavanderia?.nome}</Text>
-      </View>
+    <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 32 }}>
+      <CabecalhoTela titulo="Status da lavagem" subtitulo={lavanderia?.nome} semVoltar />
 
-      {/* Timer */}
-      <View className="mx-4 mt-6 bg-blue-50 rounded-3xl p-6 items-center">
-        <View className="w-32 h-32 rounded-full border-4 border-blue-700 items-center justify-center mb-3">
-          <Text className="text-blue-700 text-3xl font-bold">{min}:{sec}</Text>
-          <Text className="text-blue-400 text-xs">restantes</Text>
+      <View className="mx-4 mt-6 bg-white border border-gray-200 rounded-3xl p-6 items-center">
+        <View className="w-36 h-36 rounded-full border-[6px] border-blue-700 items-center justify-center mb-4">
+          <Text className="text-blue-700 text-4xl font-bold">{min}:{sec}</Text>
+          <Text className="text-gray-400 text-xs">restantes</Text>
         </View>
-        <Text className="text-gray-800 font-bold text-lg">
-          Lavando... Máquina {String(maquina?.numero ?? 0).padStart(2, '0')}
+        <Text className="text-gray-900 font-bold text-lg text-center">
+          {segundos === 0 ? 'Pronto! Pode retirar suas roupas' : `${etapas[atual]}... Máquina ${numero}`}
         </Text>
-        <Text className="text-gray-400 text-sm mt-1">{lavanderia?.nome}</Text>
+        <Text className="text-gray-400 text-sm mt-1">{getPrograma(programa).nome}</Text>
       </View>
 
-      {/* Etapas */}
-      <View className="mx-4 mt-6">
-        <Text className="text-gray-800 font-bold text-base mb-4">Etapas</Text>
-        {ETAPAS.map((etapa) => {
-          const concluida = etapaAtual > etapa.id;
-          const atual = etapaAtual === etapa.id;
+      <View className="mx-4 mt-3 bg-white border border-gray-200 rounded-2xl p-4">
+        <Text className="text-gray-900 font-bold text-base mb-4">Etapas</Text>
+        {etapas.map((etapa, i) => {
+          const concluida = i < atual || segundos === 0;
+          const emAndamento = i === atual && segundos > 0;
           return (
-            <View key={etapa.id} className="flex-row items-center mb-4">
-              <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${concluida ? 'bg-green-500' : atual ? 'bg-blue-700' : 'bg-gray-200'}`}>
-                {concluida ? (
-                  <Ionicons name="checkmark" size={16} color="white" />
-                ) : (
-                  <Text className={`text-xs font-bold ${atual ? 'text-white' : 'text-gray-400'}`}>{etapa.id}</Text>
-                )}
+            <View key={etapa} className="flex-row items-center mb-4">
+              <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${concluida ? 'bg-green-500' : emAndamento ? 'bg-blue-700' : 'bg-gray-200'}`}>
+                {concluida ? <Ionicons name="checkmark" size={16} color="white" /> : <Text className={`text-xs font-bold ${emAndamento ? 'text-white' : 'text-gray-400'}`}>{i + 1}</Text>}
               </View>
-              <Text className={`text-base ${concluida ? 'text-green-600 font-semibold' : atual ? 'text-blue-700 font-bold' : 'text-gray-400'}`}>
-                {etapa.label}
-              </Text>
-              {atual && (
+              <Text className={`text-base ${concluida ? 'text-green-700 font-semibold' : emAndamento ? 'text-blue-700 font-bold' : 'text-gray-400'}`}>{etapa}</Text>
+              {emAndamento && (
                 <View className="ml-2 bg-blue-100 px-2 py-0.5 rounded-full">
                   <Text className="text-blue-700 text-xs font-semibold">Em andamento</Text>
                 </View>
@@ -89,7 +72,7 @@ export default function StatusLavagem() {
 
       <TouchableOpacity
         onPress={() => navigation.navigate('UserTabs', { screen: 'Home' })}
-        className="mx-4 mt-4 border-2 border-blue-700 rounded-2xl py-4 items-center"
+        className="mx-4 mt-5 border-2 border-blue-700 rounded-2xl py-4 items-center"
       >
         <Text className="text-blue-700 font-bold text-base">Voltar ao início</Text>
       </TouchableOpacity>

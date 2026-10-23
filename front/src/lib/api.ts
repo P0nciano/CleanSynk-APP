@@ -14,6 +14,7 @@ export type Lavanderia = {
   preco_lavagem?: string | null;
   preco_secagem?: string | null;
   preco_lava_seca?: string | null;
+  foto_versao?: number; // 0 = sem foto
 };
 
 export type Maquina = {
@@ -181,7 +182,7 @@ export async function getNotificacoes(token?: string) {
   return apiFetch<Notificacao[]>("/notificacoes", { token });
 }
 
-export async function updateUsuario(id: number, data: { nome?: string; email?: string; senha?: string }, token?: string) {
+export async function updateUsuario(id: number, data: { nome?: string; email?: string; senha?: string; senha_atual?: string }, token?: string) {
   return apiFetch<AuthUser>(`/usuarios/${id}`, { method: "PATCH", body: data, token });
 }
 
@@ -200,6 +201,23 @@ export function getPrograma(id: string) {
 export function precoNaLavanderia(id: string, lavanderia?: Lavanderia) {
   const proprio = lavanderia?.[`preco_${id}` as 'preco_lavagem'];
   return proprio != null ? Number(proprio) : getPrograma(id).valor;
+}
+
+// A versão na URL faz o app baixar de novo quando a foto mudar (o servidor guarda em cache)
+export function fotoDaLavanderia(l: Pick<Lavanderia, 'lavanderia_id' | 'foto_versao'>) {
+  return l.foto_versao ? `${API_URL}/lavanderias/${l.lavanderia_id}/foto?v=${l.foto_versao}` : null;
+}
+
+export async function getCidade(lat: number, lon: number, token?: string) {
+  return apiFetch<{ cidade: string; uf: string }>(`/lavanderias/cidade?lat=${lat}&lon=${lon}`, { token });
+}
+
+export async function salvarFotoLavanderia(id: number, foto: string | null, token?: string) {
+  return apiFetch<Lavanderia>(`/lavanderias/${id}/foto`, { method: "PATCH", body: { foto }, token });
+}
+
+export async function marcarNotificacaoLida(id: number, token?: string) {
+  return apiFetch<unknown>(`/notificacoes/${id}/lida`, { method: "PATCH", token });
 }
 
 export async function salvarPrecosLavanderia(id: number, precos: Partial<Record<'preco_lavagem' | 'preco_secagem' | 'preco_lava_seca', number | null>>, token?: string) {

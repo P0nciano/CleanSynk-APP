@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { View, Text, TextInput, TouchableOpacity } from "react-native";
+import { useEffect, useState } from "react";
+import { minhaCidade } from "src/lib/localizacao";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSearch } from "src/context/search";
 import { fundoGradiente } from "src/components/AdminLayout";
@@ -8,6 +10,15 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 export default function Header() {
   const { query, setQuery } = useSearch();
+  const [cidade, setCidade] = useState("Buscando...");
+
+  function localizar() {
+    setCidade("Buscando...");
+    // Se falhar, tocar no nome tenta de novo
+    minhaCidade().then(setCidade).catch(() => setCidade("Ativar localização"));
+  }
+
+  useEffect(localizar, []);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const insets = useSafeAreaInsets();
 
@@ -17,13 +28,13 @@ export default function Header() {
       style={[fundoGradiente, { paddingTop: insets.top + 12 }]}
     >
       <View className="flex-row items-center justify-between">
-        <View className="flex-row items-start">
+        <TouchableOpacity onPress={localizar} accessibilityLabel="Atualizar localização" className="flex-row items-start shrink">
           <Ionicons name="location-outline" size={13} color="white" style={{ marginTop: 2 }} />
-          <View className="ml-1">
+          <View className="ml-1 shrink">
             <Text className="text-white/80 text-xs">Localização</Text>
-            <Text className="text-white text-2xl font-bold">Pelotas, RS</Text>
+            <Text className="text-white text-2xl font-bold" numberOfLines={1}>{cidade}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => navigation.navigate('Notificacoes')}

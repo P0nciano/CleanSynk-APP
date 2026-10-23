@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import CabecalhoTela from 'src/components/CabecalhoTela';
 
 const CUPONS = [
   { id: 1, codigo: 'PRIMEIRA30', desconto: '30% off', descricao: 'Na primeira lavagem', validade: '31/12/2026', usado: false },
@@ -10,22 +10,15 @@ const CUPONS = [
 ];
 
 export default function MeusCupons() {
-  const navigation = useNavigation();
-
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 32 }}>
-      <View className="bg-[#1565C0] pt-12 pb-6 px-5">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="flex-row items-center mb-4">
-          <Ionicons name="arrow-back" size={22} color="white" />
-          <Text className="text-white ml-2 font-semibold">Meus Cupons</Text>
-        </TouchableOpacity>
-      </View>
+    <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 32 }}>
+      <CabecalhoTela titulo="Meus cupons" />
 
-      <View className="px-4 mt-4">
+      <View className="px-4 mt-6">
         {CUPONS.map((c) => (
           <View
             key={c.id}
-            className={`rounded-2xl p-4 mb-3 border-2 ${c.usado ? 'border-gray-200 bg-gray-50' : 'border-blue-200 bg-blue-50'}`}
+            className={`rounded-2xl p-4 mb-3 border ${c.usado ? 'border-gray-200 bg-gray-50' : 'border-gray-200 bg-white'}`}
           >
             <View className="flex-row justify-between items-start">
               <View className="flex-1">

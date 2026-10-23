@@ -4,6 +4,7 @@ import cors from "cors";
 import { autentica, autenticaAdmin } from "./middlewares/autentica";
 import { PagamentoController } from "./controllers/PagamentoController";
 import { ReservaController } from "./controllers/ReservaController";
+import { LavanderiaController } from "./controllers/LavanderiaController";
 import {
   adminLoginRoutes,
   adminsRoutes,
@@ -23,6 +24,7 @@ const app = express();
 
 const pagamentoController = new PagamentoController();
 const reservaController = new ReservaController();
+const lavanderiaController = new LavanderiaController();
 
 app.post(
   "/webhook/stripe",
@@ -36,7 +38,8 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-app.use(express.json());
+// Folga para a foto da lavanderia (o app reduz para ~100 KB; o limite da foto é 600 KB)
+app.use(express.json({ limit: "1mb" }));
 
 // Serverless (Vercel) não mantém setInterval vivo: as reservas expiradas são liberadas
 // na chegada das requisições, no máximo uma vez por minuto por instância
@@ -54,6 +57,7 @@ app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
 app.use("/login", loginRoutes);
 app.use("/admin-auth", adminLoginRoutes);
 app.use("/usuarios", usuariosRoutes);
+app.get("/lavanderias/:id/foto", (req, res) => lavanderiaController.foto(req, res));
 app.use("/lavanderias", autentica, lavanderiasRoutes);
 app.use("/maquinas", autentica, maquinasRoutes);
 app.use("/reservas", autentica, reservaRoutes);

@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import { timingSafeEqual } from "crypto";
 import { TipoUsuario } from "../generated/prisma/client";
 import { prisma, lavanderiasDo } from "../lib/prisma";
+import { bloqueado, ipDe, registrarFalha } from "../lib/tentativas";
 
 function codigoAdminValido(codigo: unknown) {
   const esperado = process.env.ADMIN_SIGNUP_CODE;
@@ -26,17 +27,12 @@ export class UsuarioController {
       // Admin só com o código secreto do grupo (ADMIN_SIGNUP_CODE na Vercel); sem ele, sempre cliente
       const querAdmin = tipo === TipoUsuario.ADMIN;
       if (querAdmin) {
-        // Limite no banco (na Vercel cada requisição pode cair numa instância diferente)
-        const ip = String(req.headers["x-forwarded-for"] ?? req.ip ?? "").split(",")[0].trim();
-        const [doIp, total] = await Promise.all([
-          prisma.tentativaAdmin.count({ where: { ip, createdAt: { gt: new Date(Date.now() - 15 * 60_000) } } }),
-          prisma.tentativaAdmin.count({ where: { createdAt: { gt: new Date(Date.now() - 60 * 60_000) } } }),
-        ]);
-        if (doIp >= 5 || total >= 30) {
+        const ip = ipDe(req);
+        if (await bloqueado("codigo_admin", ip, 5, 30)) {
           return res.status(429).json({ error: "Muitas tentativas com código de administrador. Tente de novo mais tarde." });
         }
         if (!codigoAdminValido(codigo_admin)) {
-          await prisma.tentativaAdmin.create({ data: { ip } });
+          await registrarFalha("codigo_admin", ip);
           return res.status(403).json({ error: "Código de administrador inválido" });
         }
       }
@@ -119,7 +115,17 @@ export class UsuarioController {
     try {
       const usuarioId = Number(req.params.id);
       if (!podeAcessar(req, usuarioId)) return res.status(403).json({ error: "Acesso negado" });
-      const { nome, email, senha } = req.body;
+      const { nome, email, senha, senha_atual } = req.body;
+
+      if (nome !== undefined && !String(nome).trim()) {
+        return res.status(400).json({ error: "O nome não pode ficar vazio" });
+      }
+      if (email !== undefined && !/^\S+@\S+\.\S+$/.test(email)) {
+        return res.status(400).json({ error: "E-mail inválido" });
+      }
+      if (senha !== undefined && String(senha).length < 6) {
+        return res.status(400).json({ error: "A senha deve ter pelo menos 6 caracteres" });
+      }
 
       const usuarioExistente = await prisma.usuario.findUnique({
         where: { usuario_id: usuarioId },
@@ -127,6 +133,11 @@ export class UsuarioController {
 
       if (!usuarioExistente) {
         return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+
+      // Trocar a senha exige a atual: o app aberto em outro aparelho não basta para tomar a conta
+      if (senha && !(senha_atual && (await bcrypt.compare(String(senha_atual), usuarioExistente.senha)))) {
+        return res.status(400).json({ error: "Senha atual incorreta" });
       }
 
       if (email && email !== usuarioExistente.email) {

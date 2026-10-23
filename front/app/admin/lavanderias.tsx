@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
-  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard,
+  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import FotoLavanderia from 'src/components/FotoLavanderia';
+import { salvarFotoLavanderia } from 'src/lib/api';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import { AdminPagina, AbasSegmentadas } from 'src/components/AdminLayout';
@@ -24,6 +28,7 @@ type Lavanderia = {
   lavanderia_id: number;
   nome: string;
   endereco: string;
+  foto_versao?: number;
   maquinas: Maquina[];
 };
 
@@ -89,6 +94,7 @@ export default function AdminLavanderias() {
   const [enderecoLav, setEnderecoLav] = useState('');
   const [salvandoLav, setSalvandoLav] = useState(false);
   const [erroLav, setErroLav] = useState('');
+  const [fotoLav, setFotoLav] = useState<{ uri: string; base64?: string } | null>(null);
 
   // Modal liberar máquina (tirar da manutenção)
   const [showLiberar, setShowLiberar] = useState(false);
@@ -200,6 +206,42 @@ export default function AdminLavanderias() {
     }
   }
 
+  // Foto opcional: reduz para 800 px em JPEG (~100 KB) antes de enviar; null = cancelou
+  async function escolherImagem() {
+    const escolha = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 1 });
+    if (escolha.canceled) return null;
+    const contexto = ImageManipulator.manipulate(escolha.assets[0].uri);
+    contexto.resize({ width: 800 });
+    const imagem = await contexto.renderAsync();
+    return imagem.saveAsync({ compress: 0.7, format: SaveFormat.JPEG, base64: true });
+  }
+
+  async function escolherFoto() {
+    try {
+      const foto = await escolherImagem();
+      if (foto) setFotoLav(foto);
+    } catch {
+      setErroLav('Não foi possível carregar a foto.');
+    }
+  }
+
+  // Trocar ou remover (null) a foto da lavanderia aberta
+  const [salvandoFoto, setSalvandoFoto] = useState(false);
+  async function trocarFoto(remover = false) {
+    if (!selected) return;
+    try {
+      const foto = remover ? null : await escolherImagem();
+      if (!remover && !foto) return;
+      setSalvandoFoto(true);
+      await salvarFotoLavanderia(selected.lavanderia_id, foto?.base64 ?? null, (await getStoredToken()) ?? undefined);
+      await load();
+    } catch (e) {
+      Alert.alert('Erro', e instanceof Error ? e.message : 'Não foi possível salvar a foto.');
+    } finally {
+      setSalvandoFoto(false);
+    }
+  }
+
   async function cadastrarLavanderia() {
     if (!nomeLav.trim() || !enderecoLav.trim()) return setErroLav('Preencha nome e endereço.');
     setSalvandoLav(true);
@@ -209,13 +251,14 @@ export default function AdminLavanderias() {
       const res = await fetch(`${API}/lavanderias`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: nomeLav.trim(), endereco: enderecoLav.trim() }),
+        body: JSON.stringify({ nome: nomeLav.trim(), endereco: enderecoLav.trim(), foto: fotoLav?.base64 }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error ?? 'Não foi possível cadastrar a lavanderia.');
       setShowNovaLav(false);
       setNomeLav('');
       setEnderecoLav('');
+      setFotoLav(null);
       load();
     } catch (err: any) {
       setErroLav(err?.message ?? 'Não foi possível cadastrar a lavanderia.');
@@ -286,6 +329,28 @@ export default function AdminLavanderias() {
             </>
           }
         >
+          <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 flex-row items-center gap-4">
+            <FotoLavanderia lavanderia={selected} tamanho={56} />
+            <View className="flex-1">
+              <Text className="text-gray-900 font-semibold">Foto da lavanderia</Text>
+              <Text className="text-gray-400 text-xs">Aparece para os clientes na lista e no detalhe</Text>
+            </View>
+            {salvandoFoto ? (
+              <ActivityIndicator color="#1d4ed8" />
+            ) : (
+              <View className="flex-row gap-4">
+                <TouchableOpacity onPress={() => trocarFoto()}>
+                  <Text className="text-blue-700 font-semibold">{selected.foto_versao ? 'Trocar' : 'Adicionar'}</Text>
+                </TouchableOpacity>
+                {selected.foto_versao ? (
+                  <TouchableOpacity onPress={() => trocarFoto(true)}>
+                    <Text className="text-red-600 font-semibold">Remover</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
+          </View>
+
           <View className="mb-6">
             <AbasSegmentadas
               abas={[{ id: 'maquinas', rotulo: 'Máquinas' }, { id: 'cadastrar', rotulo: '+ Cadastrar' }]}
@@ -569,9 +634,7 @@ export default function AdminLavanderias() {
                 className="bg-white border border-gray-200 rounded-2xl p-6 w-full md:w-[48%] lg:w-[31.5%]"
               >
                 <View className="flex-row items-center gap-3 mb-4">
-                  <View className="w-11 h-11 rounded-xl bg-blue-50 items-center justify-center">
-                    <MaterialCommunityIcons name="washing-machine" size={22} color="#1d4ed8" />
-                  </View>
+                  <FotoLavanderia lavanderia={lav} tamanho={44} />
                   <View className="flex-1">
                     <Text className="text-gray-900 font-bold text-base" numberOfLines={1}>{lav.nome}</Text>
                     <Text className="text-gray-400 text-xs" numberOfLines={1}>{lav.endereco}</Text>
@@ -626,10 +689,27 @@ export default function AdminLavanderias() {
               value={enderecoLav}
               onChangeText={setEnderecoLav}
             />
+            <Text className="text-gray-500 text-sm mb-1">Foto (opcional)</Text>
+            {fotoLav ? (
+              <View className="flex-row items-center gap-4 mb-4">
+                <Image source={{ uri: fotoLav.uri }} style={{ width: 64, height: 64, borderRadius: 12 }} accessibilityLabel="Foto escolhida" />
+                <TouchableOpacity onPress={escolherFoto}>
+                  <Text className="text-blue-700 font-semibold">Trocar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setFotoLav(null)}>
+                  <Text className="text-red-600 font-semibold">Remover</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={escolherFoto} className="border border-dashed border-gray-300 rounded-xl py-4 mb-4 flex-row items-center justify-center gap-2">
+                <Ionicons name="camera-outline" size={20} color="#1d4ed8" />
+                <Text className="text-blue-700 font-semibold">Adicionar foto</Text>
+              </TouchableOpacity>
+            )}
             {erroLav ? <Text className="text-red-600 text-sm mb-3">{erroLav}</Text> : null}
             <View className="flex-row gap-3">
               <TouchableOpacity
-                onPress={() => setShowNovaLav(false)}
+                onPress={() => { setShowNovaLav(false); setFotoLav(null); }}
                 className="flex-1 border border-gray-200 rounded-2xl py-3 items-center"
               >
                 <Text className="text-gray-600 font-semibold">Cancelar</Text>

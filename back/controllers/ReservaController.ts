@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { prisma, usuarioPublico, notificarProprietario, lavanderiasDo, adminDonoDaMaquina } from "../lib/prisma";
+import { prisma, usuarioPublico, notificarProprietario, lavanderiasDo, adminDonoDaMaquina, PRAZO_PAGAMENTO_MIN } from "../lib/prisma";
 import { AuthRequest, podeAcessar } from "../middlewares/autentica";
 import { stripe } from "./PagamentoController";
 
@@ -121,6 +121,9 @@ export class ReservaController {
       const reserva = await prisma.reserva.findUnique({ where: { reserva_id: Number(id) }, include: { maquina: { include: { lavanderia: true } } } });
       if (!reserva) return res.status(404).json({ error: "Reserva não encontrada" });
       if (!podeVerReserva(req, reserva)) return res.status(403).json({ error: "Acesso negado" });
+      if (await prisma.pagamento.count({ where: { reserva_id: reserva.reserva_id } })) {
+        return res.status(409).json({ error: "Reserva com pagamento não pode ser excluída. Use cancelar." });
+      }
 
       // Só libera máquina se não houver outra reserva ativa
       const outraAtiva = await prisma.reserva.findFirst({
@@ -200,23 +203,29 @@ export class ReservaController {
     }
   }
 
-  // Libera reservas expiradas automaticamente
+  // Libera reservas expiradas automaticamente:
+  // - PAGA com o tempo do programa acabado -> CONCLUIDA
+  // - ATIVA (sem pagamento) depois de PRAZO_PAGAMENTO_MIN ou do fim do programa -> CANCELADA
   async liberarExpiradas() {
     try {
       const agora = new Date();
+      const limitePagamento = new Date(agora.getTime() - PRAZO_PAGAMENTO_MIN * 60_000);
       const expiradas = await prisma.reserva.findMany({
         where: {
-          status: { notIn: ["CANCELADA", "CONCLUIDA"] },
-          data_fim: { lt: agora }
+          OR: [
+            { status: "PAGA", data_fim: { lt: agora } },
+            { status: "ATIVA", OR: [{ data_inicio: { lt: limitePagamento } }, { data_fim: { lt: agora } }] },
+          ]
         },
         include: { maquina: true }
       });
 
       for (const reserva of expiradas) {
+        const paga = reserva.status === "PAGA";
         // Só segue quem de fato mudou o status: outra instância pode estar liberando a mesma reserva
         const { count } = await prisma.reserva.updateMany({
-          where: { reserva_id: reserva.reserva_id, status: { notIn: ["CANCELADA", "CONCLUIDA"] } },
-          data: { status: "CONCLUIDA" }
+          where: { reserva_id: reserva.reserva_id, status: reserva.status },
+          data: { status: paga ? "CONCLUIDA" : "CANCELADA" }
         });
         if (count === 0) continue;
 
@@ -236,15 +245,16 @@ export class ReservaController {
           });
         }
 
-        // Notificação para o usuário — lavagem concluída
         await prisma.notificacao.create({
           data: {
             usuario_id: reserva.usuario_id,
-            mensagem: `Sua lavagem foi concluída — Máquina ${reserva.maquina.numero}`
+            mensagem: paga
+              ? `Sua lavagem foi concluída — Máquina ${reserva.maquina.numero}`
+              : `Reserva #${reserva.reserva_id} cancelada: o pagamento não foi concluído a tempo`
           }
         });
 
-        await notificarProprietario(reserva.maquina_id, `Máquina ${reserva.maquina.numero} liberada — Reserva #${reserva.reserva_id} concluída`);
+        await notificarProprietario(reserva.maquina_id, `Máquina ${reserva.maquina.numero} liberada — Reserva #${reserva.reserva_id} ${paga ? "concluída" : "cancelada por falta de pagamento"}`);
       }
 
       if (expiradas.length > 0) {

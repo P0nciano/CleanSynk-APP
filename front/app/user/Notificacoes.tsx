@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import CabecalhoTela from 'src/components/CabecalhoTela';
+import { marcarNotificacaoLida } from 'src/lib/api';
 import { useAuth } from 'src/context/auth';
 
 const API = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -22,7 +23,6 @@ function getBadge(msg: string) {
 }
 
 export default function Notificacoes() {
-  const navigation = useNavigation();
   const { user, token } = useAuth();
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,10 @@ export default function Notificacoes() {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('Erro ao carregar notificações');
-        setNotificacoes(await res.json());
+        const lista: Notificacao[] = await res.json();
+        setNotificacoes(lista);
+        // Abriu a tela = viu os avisos: marca como lidos (a lista continua destacando os novos desta vez)
+        lista.filter((n) => !n.lida).forEach((n) => marcarNotificacaoLida(n.notificacao_id, token!).catch(() => undefined));
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Erro');
       } finally {
@@ -48,13 +51,8 @@ export default function Notificacoes() {
   }, [user, token]);
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 32 }}>
-      <View style={{ backgroundColor: '#1565C0', paddingBottom: 24, paddingHorizontal: 20 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 48, marginBottom: 16 }}>
-          <Ionicons name="arrow-back" size={22} color="white" />
-          <Text style={{ color: 'white', marginLeft: 8, fontWeight: '600' }}>Notificações</Text>
-        </TouchableOpacity>
-      </View>
+    <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 32 }}>
+      <CabecalhoTela titulo="Notificações" />
 
       {loading ? (
         <View className="mt-12 items-center"><ActivityIndicator size="large" color="#1d4ed8" /></View>
@@ -66,11 +64,11 @@ export default function Notificacoes() {
           <Text className="text-gray-400 mt-3 text-base">Nenhuma notificação ainda</Text>
         </View>
       ) : (
-        <View className="px-4 mt-4">
+        <View className="px-4 mt-6">
           {notificacoes.map((n) => {
             const badge = getBadge(n.mensagem);
             return (
-              <View key={n.notificacao_id} style={{ marginBottom: 12, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: n.lida ? '#f9fafb' : '#eff6ff' }}>
+              <View key={n.notificacao_id} className={`mb-3 rounded-2xl p-4 flex-row items-start border ${n.lida ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-100'}`}>
                 <Ionicons name={badge.icon} size={22} color={badge.cor} style={{ marginTop: 2 }} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={{ fontSize: 14, color: n.lida ? '#6b7280' : '#1f2937', fontWeight: n.lida ? '400' : '600' }}>{n.mensagem}</Text>

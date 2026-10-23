@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getLavanderia, type Lavanderia } from 'src/lib/api';
+import { PROGRAMAS, fotoDaLavanderia, getLavanderia, precoNaLavanderia, type Lavanderia } from 'src/lib/api';
+import CabecalhoTela from 'src/components/CabecalhoTela';
+
+function Contador({ valor, rotulo, cor, fundo }: { valor: number; rotulo: string; cor: string; fundo: string }) {
+  return (
+    <View className="flex-1 rounded-2xl py-3 items-center" style={{ backgroundColor: fundo }}>
+      <Text className="font-bold text-2xl" style={{ color: cor }}>{valor}</Text>
+      <Text className="text-xs" style={{ color: cor }}>{rotulo}</Text>
+    </View>
+  );
+}
 
 export default function LavanderiaDetalhe() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -16,8 +26,7 @@ export default function LavanderiaDetalhe() {
   useEffect(() => {
     async function carregar() {
       try {
-        const d = await getLavanderia(lavanderia.lavanderia_id);
-        setDados(d);
+        setDados(await getLavanderia(lavanderia.lavanderia_id));
       } catch {
         setDados(lavanderia);
       } finally {
@@ -28,91 +37,62 @@ export default function LavanderiaDetalhe() {
   }, []);
 
   const info = dados ?? lavanderia;
-  const livres = info.maquinas?.filter((m) => m.status === 'LIVRE').length ?? 0;
+  const contar = (status: string) => info.maquinas?.filter((m) => m.status === status).length ?? 0;
+  const foto = fotoDaLavanderia(info);
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 32 }}>
-      {/* Header */}
-      <View className="bg-[#1565C0] pt-12 pb-6 px-5">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="flex-row items-center mb-4">
-          <Ionicons name="arrow-back" size={22} color="white" />
-          <Text className="text-white ml-2 font-semibold">Voltar</Text>
-        </TouchableOpacity>
-        <Text className="text-white text-2xl font-bold">{info.nome}</Text>
-        <Text className="text-blue-200 text-sm mt-1">{info.endereco}</Text>
+    <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 32 }}>
+      <CabecalhoTela titulo={info.nome} subtitulo={info.endereco} />
+
+      {/* Foto (ou ilustração quando a lavanderia não tem) */}
+      <View className="mx-4 mt-4 h-48 bg-blue-50 rounded-3xl items-center justify-center overflow-hidden">
+        {foto ? (
+          <Image source={{ uri: foto }} resizeMode="cover" style={{ width: '100%', height: '100%' }} accessibilityLabel={`Foto da ${info.nome}`} />
+        ) : (
+          <MaterialCommunityIcons name="washing-machine" size={64} color="#93c5fd" />
+        )}
       </View>
 
-      {/* Foto placeholder */}
-      <View className="mx-4 mt-4 h-48 bg-gray-200 rounded-3xl items-center justify-center">
-        <MaterialCommunityIcons name="washing-machine" size={64} color="#9ca3af" />
-      </View>
-
-      {/* Info cards */}
-      <View className="mx-4 mt-4 flex-row gap-3">
-        <View className="flex-1 bg-blue-50 rounded-2xl p-3 items-center">
-          <Ionicons name="star" size={20} color="#FBBF24" />
-          <Text className="text-gray-800 font-bold mt-1">4.5</Text>
-          <Text className="text-gray-400 text-xs">Avaliação</Text>
-        </View>
-        <View className="flex-1 bg-blue-50 rounded-2xl p-3 items-center">
-          <Ionicons name="time-outline" size={20} color="#1d4ed8" />
-          <Text className="text-gray-800 font-bold mt-1">07h–22h</Text>
-          <Text className="text-gray-400 text-xs">Horário</Text>
-        </View>
-        <View className="flex-1 bg-blue-50 rounded-2xl p-3 items-center">
-          <MaterialCommunityIcons name="washing-machine" size={20} color="#1d4ed8" />
-          <Text className="text-gray-800 font-bold mt-1">{livres}</Text>
-          <Text className="text-gray-400 text-xs">Livres</Text>
-        </View>
-      </View>
-
-      {/* Preços */}
-      <View className="mx-4 mt-4 bg-blue-50 rounded-2xl p-4">
-        <Text className="text-gray-800 font-bold mb-2">Preços</Text>
-        <View className="flex-row justify-between">
-          <Text className="text-gray-600 text-sm">Lavagem</Text>
-          <Text className="text-gray-800 font-semibold text-sm">R$ 18,00 / ciclo</Text>
-        </View>
-        <View className="flex-row justify-between mt-1">
-          <Text className="text-gray-600 text-sm">Secagem</Text>
-          <Text className="text-gray-800 font-semibold text-sm">R$ 12,00 / ciclo</Text>
-        </View>
-        <View className="flex-row justify-between mt-1">
-          <Text className="text-gray-600 text-sm">Tempo médio</Text>
-          <Text className="text-gray-800 font-semibold text-sm">35 min</Text>
-        </View>
-      </View>
-
-      {/* Disponibilidade */}
-      {loading ? (
-        <ActivityIndicator size="small" color="#1d4ed8" style={{ marginTop: 16 }} />
-      ) : (
-        <View className="mx-4 mt-4">
-          <Text className="text-gray-800 font-bold mb-2">Disponibilidade agora</Text>
-          <View className="flex-row gap-2">
-            <View className="bg-green-100 rounded-xl px-4 py-2 items-center">
-              <Text className="text-green-700 font-bold text-lg">{livres}</Text>
-              <Text className="text-green-600 text-xs">Livres</Text>
-            </View>
-            <View className="bg-blue-100 rounded-xl px-4 py-2 items-center">
-              <Text className="text-blue-700 font-bold text-lg">
-                {info.maquinas?.filter((m) => m.status === 'OCUPADA').length ?? 0}
-              </Text>
-              <Text className="text-blue-600 text-xs">Em uso</Text>
-            </View>
-            <View className="bg-yellow-100 rounded-xl px-4 py-2 items-center">
-              <Text className="text-yellow-700 font-bold text-lg">
-                {info.maquinas?.filter((m) => m.status === 'MANUTENCAO').length ?? 0}
-              </Text>
-              <Text className="text-yellow-600 text-xs">Manutenção</Text>
-            </View>
+      <View className="mx-4 mt-3 bg-white border border-gray-200 rounded-2xl p-4">
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-gray-900 font-bold text-base">Disponibilidade agora</Text>
+          <View className="flex-row items-center bg-amber-100 px-2 py-0.5 rounded-full">
+            <Ionicons name="star" size={11} color="#f59e0b" />
+            <Text className="text-amber-700 text-xs font-bold ml-1">4.5</Text>
           </View>
         </View>
-      )}
+        {loading ? (
+          <ActivityIndicator size="small" color="#1d4ed8" />
+        ) : (
+          <View className="flex-row gap-2">
+            <Contador valor={contar('LIVRE')} rotulo="Livres" cor="#15803d" fundo="#dcfce7" />
+            <Contador valor={contar('OCUPADA')} rotulo="Em uso" cor="#1d4ed8" fundo="#dbeafe" />
+            <Contador valor={contar('MANUTENCAO')} rotulo="Manutenção" cor="#b45309" fundo="#fef3c7" />
+          </View>
+        )}
+      </View>
+
+      {/* Preços desta lavanderia (os mesmos que o servidor cobra) */}
+      <View className="mx-4 mt-3 bg-white border border-gray-200 rounded-2xl p-4">
+        <Text className="text-gray-900 font-bold text-base mb-2">Preços</Text>
+        {PROGRAMAS.map((p) => (
+          <View key={p.id} className="flex-row justify-between items-center py-2 border-b border-gray-100">
+            <View>
+              <Text className="text-gray-800 text-sm font-semibold">{p.nome}</Text>
+              <Text className="text-gray-400 text-xs">{p.minutos} min</Text>
+            </View>
+            <Text className="text-blue-700 font-bold">R$ {precoNaLavanderia(p.id, info).toFixed(2).replace('.', ',')}</Text>
+          </View>
+        ))}
+        <View className="flex-row items-center mt-3">
+          <Ionicons name="time-outline" size={14} color="#6b7280" />
+          <Text className="text-gray-500 text-xs ml-1">Aberto das 07h às 22h</Text>
+        </View>
+      </View>
 
       <TouchableOpacity
         onPress={() => navigation.navigate('EscolherMaquina', { lavanderia: info })}
-        className="mx-4 mt-6 bg-[#1565C0] rounded-2xl py-4 items-center"
+        className="mx-4 mt-5 bg-blue-700 rounded-2xl py-4 items-center"
       >
         <Text className="text-white font-bold text-base">Escolher máquina</Text>
       </TouchableOpacity>
