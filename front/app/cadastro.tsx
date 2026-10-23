@@ -11,6 +11,8 @@ export default function Cadastro() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
+  const [tipo, setTipo] = useState<"USER" | "ADMIN">("USER");
+  const [codigoAdmin, setCodigoAdmin] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,11 +20,12 @@ export default function Cadastro() {
     if (!nome.trim() || !email.trim() || !senha) return setError("Preencha todos os campos");
     if (senha.length < 6) return setError("A senha precisa ter pelo menos 6 caracteres");
     if (senha !== confirmar) return setError("As senhas não conferem");
+    if (tipo === "ADMIN" && !codigoAdmin.trim()) return setError("Informe o código de administrador");
 
     try {
       setSubmitting(true);
       setError("");
-      await cadastrar({ nome: nome.trim(), email: email.trim(), senha });
+      await cadastrar({ nome: nome.trim(), email: email.trim(), senha, tipo, codigo_admin: tipo === "ADMIN" ? codigoAdmin.trim() : undefined });
       await signIn(email.trim(), senha);
     } catch (cadastroError) {
       setError(cadastroError instanceof Error ? cadastroError.message : "Erro ao cadastrar");
@@ -34,6 +37,20 @@ export default function Cadastro() {
     <View className="flex-1 bg-white px-6 justify-center">
       <Text className="text-3xl font-bold text-blue-700">Criar conta</Text>
       <Text className="text-gray-500 mt-2 mb-8">Cadastre-se para reservar máquinas</Text>
+
+      <View className="flex-row bg-gray-100 rounded-2xl p-1 mb-4">
+        {([["USER", "Cliente"], ["ADMIN", "Administrador"]] as const).map(([valor, rotulo]) => (
+          <TouchableOpacity
+            key={valor}
+            onPress={() => setTipo(valor)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: tipo === valor }}
+            className={`flex-1 py-3 rounded-xl items-center ${tipo === valor ? "bg-blue-700" : ""}`}
+          >
+            <Text className={`font-semibold ${tipo === valor ? "text-white" : "text-gray-600"}`}>{rotulo}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <TextInput
         value={nome}
@@ -66,6 +83,17 @@ export default function Cadastro() {
         secureTextEntry
         className="border border-gray-300 rounded-2xl px-4 py-4 mb-4"
       />
+
+      {tipo === "ADMIN" && (
+        <TextInput
+          value={codigoAdmin}
+          onChangeText={setCodigoAdmin}
+          placeholder="Código de administrador"
+          autoCapitalize="none"
+          secureTextEntry
+          className="border border-gray-300 rounded-2xl px-4 py-4 mb-4"
+        />
+      )}
 
       {error ? <Text className="text-red-600 mb-4">{error}</Text> : null}
 

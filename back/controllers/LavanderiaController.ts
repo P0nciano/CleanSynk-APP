@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { prisma, lavanderiasDo } from "../lib/prisma";
+import { AuthRequest } from "../middlewares/autentica";
 
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
@@ -130,13 +131,15 @@ export class LavanderiaController {
     }
   }
 
-  async create(req: Request, res: Response) {
+  async create(req: AuthRequest, res: Response) {
     try {
-      const { nome, endereco, latitude, longitude, proprietario_id } = req.body;
+      const { nome, endereco, latitude, longitude } = req.body;
+      // O dono é sempre quem cadastra (rota só para admin)
+      const proprietario_id = req.admin!.id;
 
-      if (!nome || !endereco || !proprietario_id) {
+      if (!nome || !endereco) {
         return res.status(400).json({
-          error: "nome, endereco e proprietario_id são obrigatórios",
+          error: "nome e endereco são obrigatórios",
         });
       }
 
@@ -170,7 +173,10 @@ export class LavanderiaController {
           return res.status(400).json({ error: "latitude e longitude devem ser números válidos" });
         }
       } else {
-        const geocodificado = await geocodeEndereco(String(endereco));
+        const geocodificado = await geocodeEndereco(String(endereco)).catch(() => null);
+        if (!geocodificado) {
+          return res.status(400).json({ error: "Endereço não encontrado. Inclua rua, número e cidade." });
+        }
         latitudeFinal = geocodificado.latitude;
         longitudeFinal = geocodificado.longitude;
         enderecoFinal = geocodificado.enderecoFormatado;
@@ -188,13 +194,15 @@ export class LavanderiaController {
 
       return res.status(201).json(lavanderia);
     } catch (error) {
+      console.error("Erro ao cadastrar lavanderia:", error);
       return res.status(500).json({ error: "Erro ao cadastrar lavanderia" });
     }
   }
 
-  async findAll(req: Request, res: Response) {
+  async findAll(req: AuthRequest, res: Response) {
     try {
       const lavanderias = await prisma.lavanderia.findMany({
+        where: lavanderiasDo(req),
         include: {
           proprietario: {
             select: {

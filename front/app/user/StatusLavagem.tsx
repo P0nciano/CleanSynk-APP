@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { getPrograma } from 'src/lib/api';
 
 const ETAPAS = [
   { id: 1, label: 'Pagamento confirmado' },
@@ -14,10 +15,10 @@ const ETAPAS = [
 export default function StatusLavagem() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<any>();
-  const { lavanderia, maquina, valor } = route.params;
+  const { lavanderia, maquina, valor, programa } = route.params;
 
   const [etapaAtual, setEtapaAtual] = useState(1);
-  const [segundos, setSegundos] = useState(45 * 60);
+  const [segundos, setSegundos] = useState(getPrograma(programa).minutos * 60);
 
   useEffect(() => {
     const timer = setInterval(() => {

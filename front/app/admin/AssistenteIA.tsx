@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator,
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from 'src/context/auth';
+import { AbasSegmentadas } from 'src/components/AdminLayout';
 
 const API = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
@@ -49,8 +50,8 @@ const COR_CRITICIDADE: Record<string, string> = {
   baixa: '#22c55e', media: '#f59e0b', alta: '#ef4444', critica: '#7c3aed',
 };
 
-export default function AssistenteIA() {
-  const navigation = useNavigation();
+// Conteúdo do assistente: no computador fica ao lado dos relatórios; no celular, numa tela própria
+export function PainelOcorrencias() {
   const { token } = useAuth();
 
   const [aba, setAba] = useState<'nova' | 'banco'>('nova');
@@ -181,38 +182,19 @@ export default function AssistenteIA() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* Header */}
-      <View style={{ backgroundColor: '#1565C0', paddingBottom: 24, paddingHorizontal: 20 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, paddingTop: 48 }}>
-          <Ionicons name="arrow-back" size={22} color="white" />
-          <Text style={{ color: 'white', marginLeft: 8, fontWeight: '600' }}>Assistente IA</Text>
-        </TouchableOpacity>
-        <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold' }}>Análise de Ocorrências</Text>
-        <Text style={{ color: '#bfdbfe', fontSize: 13, marginTop: 4 }}>Registre ocorrências e a IA avalia criticidade e recomendações</Text>
-      </View>
-
-      {/* Abas */}
-      <View style={{ flexDirection: 'row', marginHorizontal: 16, marginTop: 16, borderRadius: 16, overflow: 'hidden' }}>
-        <TouchableOpacity
-          onPress={() => setAba('nova')}
-          style={{ flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: aba === 'nova' ? '#1565C0' : 'white' }}
-        >
-          <Text style={{ fontWeight: '600', fontSize: 14, color: aba === 'nova' ? 'white' : '#6b7280' }}>Nova Ocorrência</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setAba('banco')}
-          style={{ flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: aba === 'banco' ? '#1565C0' : 'white' }}
-        >
-          <Text style={{ fontWeight: '600', fontSize: 14, color: aba === 'banco' ? 'white' : '#6b7280' }}>Do Banco ({ocorrenciasBanco.length})</Text>
-        </TouchableOpacity>
-      </View>
+    <View>
+      <AbasSegmentadas
+        cheio
+        abas={[{ id: 'nova', rotulo: 'Nova ocorrência' }, { id: 'banco', rotulo: `Do banco (${ocorrenciasBanco.length})` }]}
+        ativa={aba}
+        onChange={setAba}
+      />
 
       {/* ABA: Nova ocorrência */}
       {aba === 'nova' && (
         <>
           {ocorrencias.map((o, idx) => (
-            <View key={idx} style={{ marginHorizontal: 16, marginTop: 16, backgroundColor: 'white', borderRadius: 24, padding: 16 }}>
+            <View key={idx} style={{ marginHorizontal: 0, marginTop: 16, backgroundColor: 'white', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#e5e7eb' }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <Text style={{ fontWeight: 'bold', fontSize: 15, color: '#1f2937' }}>Ocorrência {idx + 1}</Text>
                 {ocorrencias.length > 1 && (
@@ -225,6 +207,7 @@ export default function AssistenteIA() {
               <Text style={{ color: '#6b7280', fontSize: 12, marginBottom: 4 }}>Título *</Text>
               <TextInput
                 style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12, color: '#1f2937', backgroundColor: '#f9fafb' }}
+                placeholderTextColor="#9ca3af"
                 placeholder="Ex: Máquina 03 parou de funcionar"
                 value={o.titulo}
                 onChangeText={(v) => atualizar(idx, 'titulo', v)}
@@ -233,6 +216,7 @@ export default function AssistenteIA() {
               <Text style={{ color: '#6b7280', fontSize: 12, marginBottom: 4 }}>Descrição</Text>
               <TextInput
                 style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12, color: '#1f2937', backgroundColor: '#f9fafb', minHeight: 70 }}
+                placeholderTextColor="#9ca3af"
                 placeholder="Descreva o problema..."
                 value={o.descricao}
                 onChangeText={(v) => atualizar(idx, 'descricao', v)}
@@ -246,7 +230,7 @@ export default function AssistenteIA() {
                     <TouchableOpacity
                       key={c}
                       onPress={() => atualizar(idx, 'categoria', c)}
-                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: o.categoria === c ? '#1565C0' : '#f3f4f6' }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: o.categoria === c ? '#1d4ed8' : '#f3f4f6' }}
                     >
                       <Text style={{ fontSize: 12, fontWeight: '600', color: o.categoria === c ? 'white' : '#6b7280' }}>{c}</Text>
                     </TouchableOpacity>
@@ -279,7 +263,7 @@ export default function AssistenteIA() {
                 onPress={() => atualizar(idx, 'envolveCliente', !o.envolveCliente)}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
               >
-                <View style={{ width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: o.envolveCliente ? '#1565C0' : '#d1d5db', backgroundColor: o.envolveCliente ? '#1565C0' : 'white', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: o.envolveCliente ? '#1d4ed8' : '#d1d5db', backgroundColor: o.envolveCliente ? '#1d4ed8' : 'white', alignItems: 'center', justifyContent: 'center' }}>
                   {o.envolveCliente && <Ionicons name="checkmark" size={12} color="white" />}
                 </View>
                 <Text style={{ color: '#4b5563', fontSize: 14 }}>Envolve cliente</Text>
@@ -289,7 +273,7 @@ export default function AssistenteIA() {
 
           <TouchableOpacity
             onPress={adicionarOcorrencia}
-            style={{ marginHorizontal: 16, marginTop: 12, borderWidth: 2, borderStyle: 'dashed', borderColor: '#93c5fd', borderRadius: 16, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+            style={{ marginHorizontal: 0, marginTop: 12, borderWidth: 2, borderStyle: 'dashed', borderColor: '#93c5fd', borderRadius: 16, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
           >
             <Ionicons name="add-circle-outline" size={20} color="#1d4ed8" />
             <Text style={{ color: '#1d4ed8', fontWeight: '600' }}>Adicionar ocorrência</Text>
@@ -298,11 +282,11 @@ export default function AssistenteIA() {
           <TouchableOpacity
             onPress={analisarNovas}
             disabled={loading}
-            style={{ marginHorizontal: 16, marginTop: 16, backgroundColor: '#1565C0', borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+            style={{ marginHorizontal: 0, marginTop: 16, backgroundColor: '#1d4ed8', borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
           >
             {loading ? <ActivityIndicator color="white" /> : <Ionicons name="sparkles" size={20} color="white" />}
             <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>
-              {loading ? 'Analisando...' : 'Gerar Relatório com IA'}
+              {loading ? 'Analisando...' : 'Gerar relatório com IA'}
             </Text>
           </TouchableOpacity>
         </>
@@ -322,7 +306,7 @@ export default function AssistenteIA() {
             </View>
           ) : (
             ocorrenciasBanco.map((o) => (
-              <View key={o.ocorrencia_id} style={{ marginHorizontal: 16, marginTop: 12, backgroundColor: 'white', borderRadius: 20, padding: 16 }}>
+              <View key={o.ocorrencia_id} style={{ marginHorizontal: 0, marginTop: 12, backgroundColor: 'white', borderRadius: 20, padding: 16 }}>
                 <Text style={{ fontWeight: 'bold', color: '#1f2937', fontSize: 14 }}>{o.titulo}</Text>
                 <Text style={{ color: '#6b7280', fontSize: 13, marginTop: 4 }}>{o.descricao}</Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -346,7 +330,7 @@ export default function AssistenteIA() {
             <TouchableOpacity
               onPress={analisarBanco}
               disabled={loading}
-              style={{ marginHorizontal: 16, marginTop: 16, backgroundColor: '#1565C0', borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+              style={{ marginHorizontal: 0, marginTop: 16, backgroundColor: '#1d4ed8', borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
             >
               {loading ? <ActivityIndicator color="white" /> : <Ionicons name="sparkles" size={20} color="white" />}
               <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15 }}>
@@ -359,7 +343,7 @@ export default function AssistenteIA() {
 
       {/* Relatório */}
       {relatorio !== null && (
-        <View style={{ marginHorizontal: 16, marginTop: 24 }}>
+        <View style={{ marginHorizontal: 0, marginTop: 24 }}>
           <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#1f2937', marginBottom: 12 }}>📊 Relatório da IA</Text>
           {relatorio.length === 0 ? (
             <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 16 }}>
@@ -402,6 +386,25 @@ export default function AssistenteIA() {
           )}
         </View>
       )}
+    </View>
+  );
+}
+
+export default function AssistenteIA() {
+  const navigation = useNavigation();
+  return (
+    <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 40 }}>
+      <View style={{ backgroundColor: '#1d4ed8', paddingBottom: 24, paddingHorizontal: 20 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, paddingTop: 48 }}>
+          <Ionicons name="arrow-back" size={22} color="white" />
+          <Text style={{ color: 'white', marginLeft: 8, fontWeight: '600' }}>Assistente IA</Text>
+        </TouchableOpacity>
+        <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold' }}>Análise de Ocorrências</Text>
+        <Text style={{ color: '#bfdbfe', fontSize: 13, marginTop: 4 }}>Registre ocorrências e a IA avalia criticidade e recomendações</Text>
+      </View>
+      <View style={{ padding: 16 }}>
+        <PainelOcorrencias />
+      </View>
     </ScrollView>
   );
 }

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { prisma, lavanderiasDo } from "../lib/prisma";
+import { AuthRequest } from "../middlewares/autentica";
 
 type OcorrenciaInput = {
   lavanderia_id?: unknown;
@@ -163,7 +164,7 @@ Ocorrências: ${JSON.stringify(ocorrencias)}`;
 }
 
 export class AssistenteIAController {
-  async analisarOcorrencias(req: Request, res: Response) {
+  async analisarOcorrencias(req: AuthRequest, res: Response) {
     try {
       const ocorrencias: OcorrenciaInput[] = Array.isArray(req.body?.ocorrencias)
         ? (req.body.ocorrencias as OcorrenciaInput[])
@@ -181,10 +182,18 @@ export class AssistenteIAController {
         return res.status(400).json({ error: "Nenhuma ocorrência válida foi informada" });
       }
 
+      // Ocorrência sem lavanderia vai para a primeira do admin; lavanderia de outro dono é recusada
+      const minhas = (await prisma.lavanderia.findMany({ where: lavanderiasDo(req), select: { lavanderia_id: true }, orderBy: { lavanderia_id: "asc" } }))
+        .map((l) => l.lavanderia_id);
+      if (minhas.length === 0) return res.status(400).json({ error: "Cadastre uma lavanderia antes de registrar ocorrências" });
+      if (normalizadas.some((o) => o.lavanderia_id && !minhas.includes(o.lavanderia_id))) {
+        return res.status(403).json({ error: "Ocorrência em lavanderia que não é sua" });
+      }
+
       // Salva no banco (sem campo impacto — IA vai decidir)
       await prisma.ocorrencia.createMany({
         data: normalizadas.map((o) => ({
-          lavanderia_id: o.lavanderia_id ?? 1,
+          lavanderia_id: o.lavanderia_id ?? minhas[0],
           titulo: o.titulo,
           descricao: o.descricao,
           categoria: o.categoria,
@@ -212,9 +221,10 @@ export class AssistenteIAController {
     }
   }
 
-  async analisarOcorrenciasBanco(req: Request, res: Response) {
+  async analisarOcorrenciasBanco(req: AuthRequest, res: Response) {
     try {
       const ocorrenciasBanco = await prisma.ocorrencia.findMany({
+        where: { lavanderia: lavanderiasDo(req) },
         include: { lavanderia: true },
         orderBy: { createdAt: "desc" },
       });

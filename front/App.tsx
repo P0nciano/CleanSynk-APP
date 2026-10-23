@@ -11,6 +11,7 @@ import { StripeProvider } from 'src/lib/stripe';
 import { AuthProvider, useAuth } from 'src/context/auth';
 import { cancelarReserva } from 'src/lib/api';
 import { SearchProvider } from 'src/context/search';
+import { AdminBarraInferior, AdminSidebar, useLargo } from 'src/components/AdminLayout';
 
 // USER
 import Home from './app/home';
@@ -42,8 +43,10 @@ const Stack = createNativeStackNavigator();
 function UserTabs() {
   return (
     <Tab.Navigator
+      tabBar={(props) => <AdminBarraInferior {...props} />}
       screenOptions={({ route }) => ({
         headerShown: false,
+        sceneStyle: { backgroundColor: '#f5f7fb' },
         tabBarActiveTintColor: '#1565C0',
         tabBarInactiveTintColor: 'gray',
         tabBarStyle: { height: 70, paddingBottom: 5, paddingTop: 5 },
@@ -68,14 +71,19 @@ function UserTabs() {
 }
 
 function AdminTabs() {
+  // Tela larga (computador): menu lateral de site; no celular continua a barra de baixo
+  const largo = useLargo();
   return (
     <Tab.Navigator
+      tabBar={(props) => (largo ? <AdminSidebar {...props} /> : <AdminBarraInferior {...props} />)}
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarPosition: largo ? 'left' : 'bottom',
         tabBarActiveTintColor: '#1565C0',
         tabBarInactiveTintColor: 'gray',
         tabBarStyle: { height: 70, paddingBottom: 5, paddingTop: 5 },
         tabBarLabelStyle: { fontSize: 12 },
+        sceneStyle: { backgroundColor: '#f5f7fb' },
         tabBarIcon: ({ color, size }) => {
           switch (route.name) {
             case 'Início': return <Ionicons name="home" size={size} color={color} />;

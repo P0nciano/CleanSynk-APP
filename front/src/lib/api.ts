@@ -119,7 +119,7 @@ export async function login(email: string, senha: string) {
   return publicFetch<AuthUser>("/login", { method: "POST", body: { email, senha } });
 }
 
-export async function cadastrar(data: { nome: string; email: string; senha: string }) {
+export async function cadastrar(data: { nome: string; email: string; senha: string; tipo?: "USER" | "ADMIN"; codigo_admin?: string }) {
   return publicFetch<{ usuario_id: number }>("/usuarios", { method: "POST", body: data });
 }
 
@@ -168,12 +168,33 @@ export async function cancelarReserva(reservaId: number, token?: string) {
   });
 }
 
+// Reserva paga: cancela e estorna pelo Stripe
+export async function cancelarComEstorno(reservaId: number, token?: string) {
+  return apiFetch<{ message: string }>(`/reservas/${reservaId}/cancelar`, { method: "POST", token });
+}
+
 export async function getNotificacoes(token?: string) {
   return apiFetch<Notificacao[]>("/notificacoes", { token });
 }
 
 export async function updateUsuario(id: number, data: { nome?: string; email?: string; senha?: string }, token?: string) {
   return apiFetch<AuthUser>(`/usuarios/${id}`, { method: "PATCH", body: data, token });
+}
+
+// Programas de lavagem: preço e duração (o preço cobrado vem do servidor, PRECO_PROGRAMA no PagamentoController)
+export const PROGRAMAS = [
+  { id: 'lavagem', nome: 'Lavagem', minutos: 30, valor: 20 },
+  { id: 'secagem', nome: 'Secagem', minutos: 35, valor: 18 },
+  { id: 'lava_seca', nome: 'Lava e Seca', minutos: 65, valor: 30 },
+];
+
+export function getPrograma(id: string) {
+  return PROGRAMAS.find((p) => p.id === id) ?? PROGRAMAS[2];
+}
+
+// Só conta o que o Stripe confirmou
+export function somaPagos(reserva: { pagamentos?: { status: string; valor: number | string }[] }) {
+  return (reserva.pagamentos ?? []).filter((p) => p.status === 'PAGO').reduce((acc, p) => acc + Number(p.valor), 0);
 }
 
 export async function getHealth() {

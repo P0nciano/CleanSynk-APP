@@ -1,8 +1,14 @@
 import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { prisma, adminDonoDaMaquina } from "../lib/prisma";
+import { AuthRequest } from "../middlewares/autentica";
+
+async function donoDoPreco(req: AuthRequest, precoId: number) {
+  const preco = await prisma.preco.findUnique({ where: { preco_id: precoId } });
+  return Boolean(preco) && adminDonoDaMaquina(req, preco!.maquina_id);
+}
 
 export class PrecoController {
-  async create(req: Request, res: Response) {
+  async create(req: AuthRequest, res: Response) {
     try {
       const { maquina_id, valor, duracao_minutos } = req.body;
 
@@ -18,6 +24,9 @@ export class PrecoController {
 
       if (!maquina) {
         return res.status(404).json({ error: "Máquina não encontrada" });
+      }
+      if (!(await adminDonoDaMaquina(req, maquina.maquina_id))) {
+        return res.status(403).json({ error: "Esta máquina não é sua" });
       }
 
       const preco = await prisma.preco.create({
@@ -49,10 +58,11 @@ export class PrecoController {
     }
   }
 
-  async update(req: Request, res: Response) {
+  async update(req: AuthRequest, res: Response) {
     try {
       const precoId = Number(req.params.id);
       const { valor, duracao_minutos } = req.body;
+      if (!(await donoDoPreco(req, precoId))) return res.status(403).json({ error: "Este preço não é seu" });
 
       const preco = await prisma.preco.update({
         where: { preco_id: precoId },
@@ -68,9 +78,10 @@ export class PrecoController {
     }
   }
 
-  async delete(req: Request, res: Response) {
+  async delete(req: AuthRequest, res: Response) {
     try {
       const precoId = Number(req.params.id);
+      if (!(await donoDoPreco(req, precoId))) return res.status(403).json({ error: "Este preço não é seu" });
 
       await prisma.preco.delete({
         where: { preco_id: precoId },

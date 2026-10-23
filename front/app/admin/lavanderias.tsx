@@ -4,10 +4,14 @@ import {
   Modal, TextInput, Alert, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import AdminHeader from 'src/components/AdminHeader';
+import { useRoute } from '@react-navigation/native';
+import { AdminPagina, AbasSegmentadas } from 'src/components/AdminLayout';
 import { getStoredToken } from 'src/lib/auth';
 
 const API = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+
+// No navegador, fechar o teclado ao tocar tira o foco do campo que acabou de ser clicado
+const fecharTeclado = Platform.OS === 'web' ? undefined : Keyboard.dismiss;
 
 type Maquina = {
   maquina_id: number;
@@ -33,10 +37,11 @@ function MaquinaCard({ maquina, onManutencao }: { maquina: Maquina; onManutencao
   return (
     <TouchableOpacity
       onPress={() => onManutencao(maquina)}
-      className="bg-white rounded-2xl p-3 items-center m-1"
-      style={{ width: '46%' }}
+      className="bg-white border border-gray-200 rounded-2xl p-4 items-center w-[47%] md:w-[23%] lg:w-[18%]"
     >
-      <MaterialCommunityIcons name="washing-machine" size={32} color={STATUS_COLOR[maquina.status] ?? '#9ca3af'} />
+      <View className="w-12 h-12 rounded-xl items-center justify-center mb-1" style={{ backgroundColor: (STATUS_COLOR[maquina.status] ?? '#9ca3af') + '1a' }}>
+        <MaterialCommunityIcons name="washing-machine" size={28} color={STATUS_COLOR[maquina.status] ?? '#9ca3af'} />
+      </View>
       <Text className="text-gray-800 font-semibold text-sm mt-1">Máquina {maquina.numero.toString().padStart(2, '0')}</Text>
       <Text className="text-xs mt-0.5" style={{ color: STATUS_COLOR[maquina.status] ?? '#9ca3af' }}>
         {maquina.status === 'LIVRE' ? '+ Livre' : maquina.status === 'OCUPADA' ? '● Em uso' : '⚠ Manutenção'}
@@ -45,7 +50,23 @@ function MaquinaCard({ maquina, onManutencao }: { maquina: Maquina; onManutencao
   );
 }
 
+// Quadro de contagem (Livres / Em uso / Manutenção)
+function Contador({ valor, rotulo, cor, fundo, icone }: { valor: number; rotulo: string; cor: string; fundo: string; icone: React.ReactNode }) {
+  return (
+    <View className="flex-1 bg-white border border-gray-200 rounded-2xl p-3 gap-2 md:p-6 md:flex-row md:items-center md:gap-4">
+      <View className="w-12 h-12 rounded-xl items-center justify-center" style={{ backgroundColor: fundo }}>{icone}</View>
+      <View>
+        <Text className="text-[26px] md:text-[32px] font-bold" style={{ color: cor }}>{valor}</Text>
+        <Text className="text-gray-600 text-sm">{rotulo}</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function AdminLavanderias() {
+  const route = useRoute<any>();
+  // Busca da barra superior
+  const busca: string = (route.params?.busca ?? '').toLowerCase();
   const [lavanderias, setLavanderias] = useState<Lavanderia[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Lavanderia | null>(null);
@@ -61,6 +82,13 @@ export default function AdminLavanderias() {
   const [maquinaEscolhida, setMaquinaEscolhida] = useState<Maquina | null>(null);
   const [salvandoManutencao, setSalvandoManutencao] = useState(false);
   const [erroManutencao, setErroManutencao] = useState('');
+
+  // Modal nova lavanderia (admin novo começa sem nenhuma)
+  const [showNovaLav, setShowNovaLav] = useState(false);
+  const [nomeLav, setNomeLav] = useState('');
+  const [enderecoLav, setEnderecoLav] = useState('');
+  const [salvandoLav, setSalvandoLav] = useState(false);
+  const [erroLav, setErroLav] = useState('');
 
   // Modal liberar máquina (tirar da manutenção)
   const [showLiberar, setShowLiberar] = useState(false);
@@ -172,6 +200,30 @@ export default function AdminLavanderias() {
     }
   }
 
+  async function cadastrarLavanderia() {
+    if (!nomeLav.trim() || !enderecoLav.trim()) return setErroLav('Preencha nome e endereço.');
+    setSalvandoLav(true);
+    setErroLav('');
+    try {
+      const token = await getStoredToken();
+      const res = await fetch(`${API}/lavanderias`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nomeLav.trim(), endereco: enderecoLav.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? 'Não foi possível cadastrar a lavanderia.');
+      setShowNovaLav(false);
+      setNomeLav('');
+      setEnderecoLav('');
+      load();
+    } catch (err: any) {
+      setErroLav(err?.message ?? 'Não foi possível cadastrar a lavanderia.');
+    } finally {
+      setSalvandoLav(false);
+    }
+  }
+
   async function cadastrarMaquina() {
     if (!numero || !tipo || !selected) return;
     setSaving(true);
@@ -201,12 +253,9 @@ export default function AdminLavanderias() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-white">
-        <AdminHeader />
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#1d4ed8" />
-        </View>
-      </View>
+      <AdminPagina titulo="Lavanderias">
+        <ActivityIndicator size="large" color="#1d4ed8" className="mt-10" />
+      </AdminPagina>
     );
   }
 
@@ -216,75 +265,73 @@ export default function AdminLavanderias() {
     const ocupada = selected.maquinas.filter((m) => m.status === 'OCUPADA').length;
     const manut = selected.maquinas.filter((m) => m.status === 'MANUTENCAO').length;
 
+    const abrirManutencao = () => { setMaquinaEscolhida(null); setErroManutencao(''); setShowManutencao(true); };
+    const abrirLiberar = () => { setMaquinaLiberar(null); setErroLiberar(''); setShowLiberar(true); };
+
     return (
-      <View className="flex-1 bg-gray-50">
-        <AdminHeader />
-        <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-          {/* Tabs simulados */}
-          <View className="flex-row bg-white mx-4 mt-4 rounded-2xl overflow-hidden">
-            <TouchableOpacity onPress={() => setSelected(null)} className="flex-1 py-3 items-center bg-blue-50">
-              <Text className="text-blue-700 text-sm font-semibold">← Voltar</Text>
-            </TouchableOpacity>
-            <View className="flex-1 py-3 items-center bg-blue-700">
-              <Text className="text-white text-sm font-semibold">Máquinas</Text>
-            </View>
-            <TouchableOpacity onPress={() => setShowCadastro(true)} className="flex-1 py-3 items-center bg-blue-50">
-              <Text className="text-blue-700 text-sm font-semibold">+ Cadastrar</Text>
-            </TouchableOpacity>
+      <View className="flex-1">
+        <AdminPagina
+          titulo={selected.nome}
+          subtitulo="Acompanhe as máquinas, registre manutenções e libere equipamentos."
+          onVoltar={() => setSelected(null)}
+          acoes={
+            <>
+              <TouchableOpacity onPress={abrirLiberar} className="flex-1 md:flex-none items-center bg-amber-500 rounded-xl px-3 md:px-5 py-3">
+                <Text className="text-gray-900 font-semibold text-sm md:text-base">Liberar máquina</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={abrirManutencao} className="flex-1 md:flex-none bg-blue-700 rounded-xl px-3 md:px-5 py-3 flex-row items-center justify-center gap-2">
+                <Ionicons name="add" size={18} color="white" className="hidden md:flex" />
+                <Text className="text-white font-semibold text-sm md:text-base">Registrar manutenção</Text>
+              </TouchableOpacity>
+            </>
+          }
+        >
+          <View className="mb-6">
+            <AbasSegmentadas
+              abas={[{ id: 'maquinas', rotulo: 'Máquinas' }, { id: 'cadastrar', rotulo: '+ Cadastrar' }]}
+              ativa="maquinas"
+              onChange={(id) => { if (id === 'cadastrar') setShowCadastro(true); }}
+            />
           </View>
 
-          {/* Botões manutenção */}
-          <View className="mx-4 mt-3 flex-row gap-2">
-            <TouchableOpacity
-              onPress={() => { setMaquinaEscolhida(null); setErroManutencao(''); setShowManutencao(true); }}
-              className="flex-1 bg-blue-700 rounded-2xl py-3 items-center"
-            >
-              <Text className="text-white font-bold">+ Registrar manutenção</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => { setMaquinaLiberar(null); setErroLiberar(''); setShowLiberar(true); }}
-              className="flex-1 bg-amber-500 rounded-2xl py-3 items-center"
-            >
-              <Text className="text-white font-bold">Liberar máquina</Text>
-            </TouchableOpacity>
+          <View className="flex-row gap-3 md:gap-5 mb-6">
+            <Contador valor={livre} rotulo="Livres" cor="#15803d" fundo="#dcfce7" icone={<Ionicons name="checkmark" size={22} color="#16a34a" />} />
+            <Contador valor={ocupada} rotulo="Em uso" cor="#1d4ed8" fundo="#dbeafe" icone={<MaterialCommunityIcons name="washing-machine" size={22} color="#1d4ed8" />} />
+            <Contador valor={manut} rotulo="Manutenção" cor="#b45309" fundo="#fef3c7" icone={<Ionicons name="build-outline" size={20} color="#b45309" />} />
           </View>
 
-          {/* Status resumo */}
-          <View className="mx-4 mt-3 flex-row gap-2">
-            <View className="flex-1 bg-green-50 rounded-2xl p-3 items-center">
-              <Text className="text-green-600 text-xl font-bold">{livre}</Text>
-              <Text className="text-green-600 text-xs">Livres</Text>
-            </View>
-            <View className="flex-1 bg-blue-50 rounded-2xl p-3 items-center">
-              <Text className="text-blue-600 text-xl font-bold">{ocupada}</Text>
-              <Text className="text-blue-600 text-xs">Em uso</Text>
-            </View>
-            <View className="flex-1 bg-yellow-50 rounded-2xl p-3 items-center">
-              <Text className="text-yellow-600 text-xl font-bold">{manut}</Text>
-              <Text className="text-yellow-600 text-xs">Manutenção</Text>
-            </View>
-          </View>
-
-          {/* Nome lavanderia */}
-          <Text className="mx-4 mt-4 text-blue-700 font-bold text-base">{selected.nome}</Text>
-
-          {/* Grid máquinas */}
-          <View className="mx-4 mt-2 flex-row flex-wrap">
-            {selected.maquinas.map((m) => (
-              <MaquinaCard key={m.maquina_id} maquina={m} onManutencao={registrarManutencao} />
-            ))}
-            {selected.maquinas.length === 0 && (
-              <Text className="text-gray-400 text-sm mt-2">Nenhuma máquina cadastrada.</Text>
+          <View className="bg-white border border-gray-200 rounded-2xl p-7">
+            <Text className="text-gray-900 font-bold text-base mb-4">Máquinas</Text>
+            {selected.maquinas.length === 0 ? (
+              <View className="border border-dashed border-gray-200 rounded-2xl py-14 px-6 items-center">
+                <View className="w-14 h-14 rounded-2xl bg-blue-50 items-center justify-center mb-4">
+                  <MaterialCommunityIcons name="washing-machine" size={26} color="#1d4ed8" />
+                </View>
+                <Text className="text-gray-900 font-bold">Nenhuma máquina cadastrada</Text>
+                <Text className="text-gray-400 text-sm text-center mt-1 max-w-[360px]">
+                  Cadastre a primeira máquina para acompanhar o uso e a manutenção.
+                </Text>
+                <TouchableOpacity onPress={() => setShowCadastro(true)} className="mt-5 bg-blue-700 rounded-xl px-5 py-3 flex-row items-center gap-2">
+                  <Ionicons name="add" size={18} color="white" />
+                  <Text className="text-white font-semibold">Cadastrar máquina</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View className="flex-row flex-wrap gap-3">
+                {selected.maquinas.map((m) => (
+                  <MaquinaCard key={m.maquina_id} maquina={m} onManutencao={registrarManutencao} />
+                ))}
+              </View>
             )}
           </View>
-        </ScrollView>
+        </AdminPagina>
 
         {/* Modal cadastrar máquina */}
         <Modal visible={showCadastro} animationType="slide" transparent>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View className="flex-1 bg-black/40 justify-end">
+          <TouchableWithoutFeedback onPress={fecharTeclado}>
+          <View className="flex-1 bg-black/40 justify-end md:justify-center md:items-center">
             <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'}>
-            <View className="bg-white rounded-t-3xl p-6">
+            <View className="bg-white rounded-t-3xl p-6 md:rounded-3xl md:w-[480px]">
               <Text className="text-gray-800 font-bold text-lg mb-4">Nova máquina</Text>
               <Text className="text-gray-500 text-sm mb-1">Número</Text>
               <TextInput
@@ -334,8 +381,8 @@ export default function AdminLavanderias() {
 
         {/* Modal registrar manutenção */}
         <Modal visible={showManutencao} animationType="slide" transparent>
-          <View className="flex-1 bg-black/40 justify-end">
-            <View className="bg-white rounded-t-3xl p-6" style={{ maxHeight: '80%' }}>
+          <View className="flex-1 bg-black/40 justify-end md:justify-center md:items-center">
+            <View className="bg-white rounded-t-3xl p-6 md:rounded-3xl md:w-[480px]" style={{ maxHeight: '80%' }}>
               <Text className="text-gray-800 font-bold text-lg mb-1">Registrar manutenção</Text>
               <Text className="text-gray-500 text-sm mb-4">Selecione a máquina que entrará em manutenção.</Text>
 
@@ -414,8 +461,8 @@ export default function AdminLavanderias() {
 
         {/* Modal liberar máquina */}
         <Modal visible={showLiberar} animationType="slide" transparent>
-          <View className="flex-1 bg-black/40 justify-end">
-            <View className="bg-white rounded-t-3xl p-6" style={{ maxHeight: '80%' }}>
+          <View className="flex-1 bg-black/40 justify-end md:justify-center md:items-center">
+            <View className="bg-white rounded-t-3xl p-6 md:rounded-3xl md:w-[480px]" style={{ maxHeight: '80%' }}>
               <Text className="text-gray-800 font-bold text-lg mb-1">Liberar máquina</Text>
               <Text className="text-gray-500 text-sm mb-4">Selecione a máquina que sairá de manutenção.</Text>
 
@@ -496,46 +543,110 @@ export default function AdminLavanderias() {
   }
 
   // Lista de lavanderias
+  const visiveis = lavanderias.filter((l) => !busca || `${l.nome} ${l.endereco}`.toLowerCase().includes(busca));
+
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerStyle={{ paddingBottom: 24 }}>
-      <AdminHeader />
-      <View className="px-4 py-4">
-        <Text className="text-xl font-bold text-gray-800">Lavanderias</Text>
-      </View>
-      {lavanderias.map((lav) => {
-        const livre = lav.maquinas.filter((m) => m.status === 'LIVRE').length;
-        const ocupada = lav.maquinas.filter((m) => m.status === 'OCUPADA').length;
-        const manut = lav.maquinas.filter((m) => m.status === 'MANUTENCAO').length;
-        return (
-          <TouchableOpacity
-            key={lav.lavanderia_id}
-            onPress={() => setSelected(lav)}
-            className="mx-4 mb-3 bg-white rounded-3xl p-4"
-          >
-            <Text className="text-gray-800 font-bold text-base">{lav.nome}</Text>
-            <Text className="text-gray-400 text-xs mb-3">{lav.endereco}</Text>
-            <View className="flex-row gap-3">
-              <View className="flex-row items-center gap-1">
-                <View className="w-2 h-2 rounded-full bg-green-500" />
-                <Text className="text-green-600 text-sm font-semibold">{livre} Livres</Text>
-              </View>
-              <View className="flex-row items-center gap-1">
-                <View className="w-2 h-2 rounded-full bg-blue-500" />
-                <Text className="text-blue-600 text-sm font-semibold">{ocupada} Em uso</Text>
-              </View>
-              <View className="flex-row items-center gap-1">
-                <View className="w-2 h-2 rounded-full bg-yellow-400" />
-                <Text className="text-yellow-600 text-sm font-semibold">{manut} Manut.</Text>
-              </View>
-            </View>
+    <View className="flex-1">
+      <AdminPagina
+        titulo="Lavanderias"
+        subtitulo={busca ? `Resultados para "${route.params?.busca}"` : 'Escolha uma lavanderia para ver e gerenciar as máquinas.'}
+        acoes={
+          <TouchableOpacity onPress={() => { setErroLav(''); setShowNovaLav(true); }} className="bg-blue-700 rounded-xl px-5 py-3 flex-row items-center gap-2">
+            <Ionicons name="add" size={18} color="white" />
+            <Text className="text-white font-semibold">Nova lavanderia</Text>
           </TouchableOpacity>
-        );
-      })}
-      {lavanderias.length === 0 && (
-        <View className="items-center mt-12">
-          <Text className="text-gray-400">Nenhuma lavanderia encontrada.</Text>
+        }
+      >
+        <View className="flex-row flex-wrap gap-5">
+          {visiveis.map((lav) => {
+            const livre = lav.maquinas.filter((m) => m.status === 'LIVRE').length;
+            const ocupada = lav.maquinas.filter((m) => m.status === 'OCUPADA').length;
+            const manut = lav.maquinas.filter((m) => m.status === 'MANUTENCAO').length;
+            return (
+              <TouchableOpacity
+                key={lav.lavanderia_id}
+                onPress={() => setSelected(lav)}
+                className="bg-white border border-gray-200 rounded-2xl p-6 w-full md:w-[48%] lg:w-[31.5%]"
+              >
+                <View className="flex-row items-center gap-3 mb-4">
+                  <View className="w-11 h-11 rounded-xl bg-blue-50 items-center justify-center">
+                    <MaterialCommunityIcons name="washing-machine" size={22} color="#1d4ed8" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-gray-900 font-bold text-base" numberOfLines={1}>{lav.nome}</Text>
+                    <Text className="text-gray-400 text-xs" numberOfLines={1}>{lav.endereco}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+                </View>
+                <View className="flex-row gap-4 pt-4 border-t border-gray-100">
+                  <View className="flex-row items-center gap-1.5">
+                    <View className="w-2 h-2 rounded-full bg-green-500" />
+                    <Text className="text-gray-600 text-sm">{livre} livres</Text>
+                  </View>
+                  <View className="flex-row items-center gap-1.5">
+                    <View className="w-2 h-2 rounded-full bg-blue-600" />
+                    <Text className="text-gray-600 text-sm">{ocupada} em uso</Text>
+                  </View>
+                  <View className="flex-row items-center gap-1.5">
+                    <View className="w-2 h-2 rounded-full bg-amber-500" />
+                    <Text className="text-gray-600 text-sm">{manut} manut.</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-      )}
-    </ScrollView>
+        {visiveis.length === 0 && (
+          <View className="bg-white border border-dashed border-gray-200 rounded-2xl py-14 items-center">
+            <Text className="text-gray-400">
+              {busca ? 'Nenhuma lavanderia encontrada.' : 'Você ainda não tem lavanderias. Cadastre a primeira.'}
+            </Text>
+          </View>
+        )}
+      </AdminPagina>
+
+      {/* Modal nova lavanderia */}
+      <Modal visible={showNovaLav} animationType="slide" transparent>
+        <TouchableWithoutFeedback onPress={fecharTeclado}>
+        <View className="flex-1 bg-black/40 justify-end md:justify-center md:items-center">
+          <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'}>
+          <View className="bg-white rounded-t-3xl p-6 md:rounded-3xl md:w-[480px]">
+            <Text className="text-gray-800 font-bold text-lg mb-4">Nova lavanderia</Text>
+            <Text className="text-gray-500 text-sm mb-1">Nome</Text>
+            <TextInput
+              className="border border-gray-200 rounded-xl px-3 py-2 mb-3 text-gray-800"
+              placeholder="Ex: Lavanderia Centro"
+              value={nomeLav}
+              onChangeText={setNomeLav}
+            />
+            <Text className="text-gray-500 text-sm mb-1">Endereço</Text>
+            <TextInput
+              className="border border-gray-200 rounded-xl px-3 py-2 mb-4 text-gray-800"
+              placeholder="Rua, número, cidade"
+              value={enderecoLav}
+              onChangeText={setEnderecoLav}
+            />
+            {erroLav ? <Text className="text-red-600 text-sm mb-3">{erroLav}</Text> : null}
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => setShowNovaLav(false)}
+                className="flex-1 border border-gray-200 rounded-2xl py-3 items-center"
+              >
+                <Text className="text-gray-600 font-semibold">Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={cadastrarLavanderia}
+                disabled={salvandoLav}
+                className="flex-1 bg-blue-700 rounded-2xl py-3 items-center"
+              >
+                {salvandoLav ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Cadastrar</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+          </KeyboardAvoidingView>
+        </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </View>
   );
 }

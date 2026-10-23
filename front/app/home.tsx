@@ -8,6 +8,7 @@ import { useSearch } from 'src/context/search';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from 'src/context/auth';
+import { fundoGradiente } from 'src/components/AdminLayout';
 
 const OFERTAS = [
   { id: 1, titulo: 'Ganhe 30% off', descricao: 'Na 1ª lavagem - Lavanderia Central', badge: 'Tempo Limitado' },
@@ -49,38 +50,33 @@ export default function Home() {
   }, [token]);
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ paddingBottom: 24 }}>
+    <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 24 }}>
       <Header />
 
       <View className="flex-row justify-between items-center px-4 mt-6">
-        <Text className="text-lg font-bold text-gray-800">#OfertasParaVocê</Text>
+        <Text className="text-lg font-bold text-gray-900">#OfertasParaVocê</Text>
         <TouchableOpacity onPress={() => setModalOfertas(true)}>
-          <Text className="text-blue-500">Ver todas</Text>
+          <Text className="text-blue-700 text-sm font-semibold">Ver todas</Text>
         </TouchableOpacity>
       </View>
 
-      <View className="mx-4 mt-4 bg-[#1565C0] rounded-3xl p-4 overflow-hidden">
-        <View className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-blue-400" />
-        <View className="bg-white/20 self-start px-2 py-1 rounded-full">
-          <Text className="text-white text-xs font-semibold">Tempo Limitado</Text>
+      <View className="mx-4 mt-3 rounded-3xl p-5 overflow-hidden" style={[fundoGradiente, { shadowColor: '#1d4ed8', shadowOpacity: 0.25, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } }]}>
+        <View className="absolute -right-10 -top-12 w-40 h-40 rounded-full bg-white/15" />
+        <View className="absolute right-16 -bottom-16 w-32 h-32 rounded-full bg-white/10" />
+        <View className="bg-white/20 border border-white/30 self-start px-3 py-1 rounded-full">
+          <Text className="text-white text-xs font-semibold">Tempo limitado</Text>
         </View>
-        <Text className="text-white text-3xl font-bold mt-3">Ganhe 30% off</Text>
-        <Text className="text-white mt-2">Na 1ª lavagem - Lavanderia Central</Text>
-        <TouchableOpacity className="bg-white self-start px-5 py-2 rounded-full mt-4">
+        <Text className="text-white text-[32px] font-extrabold mt-3">Ganhe 30% off</Text>
+        <Text className="text-blue-100 mt-1">Na 1ª lavagem · Lavanderia Central</Text>
+        <TouchableOpacity className="bg-white self-start px-6 py-3 rounded-full mt-5">
           <Text className="text-blue-700 font-bold">Resgatar</Text>
         </TouchableOpacity>
       </View>
 
-      <View className="flex-row justify-center mt-3">
-        <View className="w-5 h-2 rounded-full bg-blue-700 mx-1" />
-        <View className="w-2 h-2 rounded-full bg-gray-300 mx-1" />
-        <View className="w-2 h-2 rounded-full bg-gray-300 mx-1" />
-      </View>
-
       <View className="flex-row justify-between items-center px-4 mt-8">
-        <Text className="text-lg font-bold text-gray-800">Lavanderias próximas</Text>
+        <Text className="text-lg font-bold text-gray-900">Lavanderias próximas</Text>
         <TouchableOpacity onPress={() => navigation.navigate('UserTabs', { screen: 'Lavanderias' })}>
-          <Text className="text-blue-500">Ver todas</Text>
+          <Text className="text-blue-700 text-sm font-semibold">Ver todas</Text>
         </TouchableOpacity>
       </View>
 
@@ -101,17 +97,17 @@ export default function Home() {
           <TouchableOpacity
             key={item.lavanderia_id}
             onPress={() => navigation.navigate('LavanderiaDetalhe', { lavanderia: item })}
-            className="mx-4 mt-4 bg-blue-100 rounded-3xl p-4 flex-row"
+            className="mx-4 mt-3 bg-white border border-gray-200 rounded-2xl p-3.5 flex-row"
           >
-            <View className="w-20 h-20 bg-gray-300 rounded-2xl items-center justify-center">
-              <Ionicons name="water" size={32} color="#1d4ed8" />
+            <View className="w-[72px] h-[72px] bg-blue-50 rounded-xl items-center justify-center">
+              <Ionicons name="water" size={26} color="#1d4ed8" />
             </View>
             <View className="ml-4 flex-1 justify-center">
-              <Text className="text-base font-bold text-gray-800">{item.nome}</Text>
-              <Text className="text-gray-500 text-sm mt-1">{item.endereco}</Text>
-              <View className="flex-row items-center self-start bg-yellow-100 px-2 py-1 rounded-full mt-2">
-                <Ionicons name="star" size={12} color="#FBBF24" />
-                <Text className="text-yellow-500 text-xs font-bold ml-1">4.5</Text>
+              <Text className="text-base font-bold text-gray-900">{item.nome}</Text>
+              <Text className="text-gray-500 text-sm mt-0.5" numberOfLines={2}>{item.endereco}</Text>
+              <View className="flex-row items-center self-start bg-amber-100 px-2 py-0.5 rounded-full mt-2">
+                <Ionicons name="star" size={11} color="#f59e0b" />
+                <Text className="text-amber-700 text-xs font-bold ml-1">4.5</Text>
               </View>
             </View>
           </TouchableOpacity>

@@ -1,19 +1,16 @@
-import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { Response } from "express";
+import { prisma, lavanderiasDo } from "../lib/prisma";
+import { AuthRequest } from "../middlewares/autentica";
 
 export class RelatorioController {
-  async usoELucro(req: Request, res: Response) {
+  async usoELucro(req: AuthRequest, res: Response) {
     try {
       const lavanderiaId = req.query.lavanderia_id ? Number(req.query.lavanderia_id) : undefined;
 
-      const whereReserva = lavanderiaId
-        ? { maquina: { lavanderia_id: lavanderiaId } }
-        : undefined;
+      const whereReserva = { maquina: { lavanderia: { ...lavanderiasDo(req), ...(lavanderiaId && { lavanderia_id: lavanderiaId }) } } };
 
       // Só entra no lucro o que o Stripe confirmou
-      const wherePagamento = lavanderiaId
-        ? { status: "PAGO", reserva: { maquina: { lavanderia_id: lavanderiaId } } }
-        : { status: "PAGO" };
+      const wherePagamento = { status: "PAGO", reserva: whereReserva };
 
       const [totalReservas, reservasConcluidas, reservasPagas, pagamentos] = await Promise.all([
         prisma.reserva.count({ where: whereReserva }),

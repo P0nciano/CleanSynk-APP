@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { TouchableOpacity } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
-import AdminHeader from 'src/components/AdminHeader';
+import { useFocusEffect } from '@react-navigation/native';
+import { AdminPagina, Card, useLargo } from 'src/components/AdminLayout';
 import { getStoredToken } from 'src/lib/auth';
+import { somaPagos } from 'src/lib/api';
+import { CardReceita, formatarReais } from './home';
+import { PainelOcorrencias } from './AssistenteIA';
 
 const API = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
@@ -26,8 +28,17 @@ function BarRow({ label, valor, max, cor }: { label: string; valor: number; max:
   );
 }
 
+function IndicadorSimples({ valor, rotulo }: { valor: string; rotulo: string }) {
+  return (
+    <View className="flex-1 min-w-[90px] rounded-2xl p-3 md:p-4 border border-white/20 bg-white/10">
+      <Text className="text-white text-2xl md:text-[28px] font-bold">{valor}</Text>
+      <Text className="text-blue-100 text-xs md:text-sm">{rotulo}</Text>
+    </View>
+  );
+}
+
 export default function AdminRelatorios() {
-  const navigation = useNavigation<any>();
+  const largo = useLargo();
   const [receita, setReceita] = useState(0);
   const [reservas, setReservas] = useState(0);
   const [taxaUso, setTaxaUso] = useState(0);
@@ -35,7 +46,7 @@ export default function AdminRelatorios() {
   const [programas, setProgramas] = useState<ProgramaStat[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     async function load() {
       try {
         const token = await getStoredToken();
@@ -51,14 +62,14 @@ export default function AdminRelatorios() {
         const ms: any[] = mRes.ok ? await mRes.json() : [];
         const ls: any[] = lRes.ok ? await lRes.json() : [];
 
-        const receitaTotal = rs.reduce((acc, r) => acc + Number(r.pagamentos?.[0]?.valor ?? 0), 0);
+        const receitaTotal = rs.reduce((acc, r) => acc + somaPagos(r), 0);
         const ativas = ms.filter((m) => m.status === 'OCUPADA').length;
         const uso = ms.length > 0 ? Math.round((ativas / ms.length) * 100) : 0;
 
         // Lucro por lavanderia
         const lavStats: LavanderiaStat[] = ls.map((lav: any) => {
           const lavReservas = rs.filter((r) => r.maquina?.lavanderia_id === lav.lavanderia_id);
-          const lavReceita = lavReservas.reduce((acc, r) => acc + Number(r.pagamentos?.[0]?.valor ?? 0), 0);
+          const lavReceita = lavReservas.reduce((acc, r) => acc + somaPagos(r), 0);
           return { nome: lav.nome, receita: lavReceita, reservas: lavReservas.length };
         });
 
@@ -68,7 +79,7 @@ export default function AdminRelatorios() {
           const tipo = r.maquina?.tipo ?? 'Outros';
           if (!tipoMap[tipo]) tipoMap[tipo] = { tipo, count: 0, total: 0 };
           tipoMap[tipo].count += 1;
-          tipoMap[tipo].total += Number(r.pagamentos?.[0]?.valor ?? 0);
+          tipoMap[tipo].total += somaPagos(r);
         });
 
         setReceita(receitaTotal);
@@ -83,106 +94,73 @@ export default function AdminRelatorios() {
       }
     }
     load();
-  }, []);
+  }, []));
 
-  if (loading) {
-    return (
-      <View className="flex-1 bg-white">
-        <AdminHeader />
-
-      <TouchableOpacity
-        onPress={() => navigation.navigate('AssistenteIA')}
-        className="mx-4 mt-4 bg-white border-2 border-blue-700 rounded-2xl py-3 px-4 flex-row items-center justify-between"
-      >
-        <View className="flex-row items-center gap-2">
-          <Ionicons name="sparkles" size={20} color="#1d4ed8" />
-          <Text className="text-blue-700 font-bold">Assistente IA — Análise de Ocorrências</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color="#1d4ed8" />
-      </TouchableOpacity>
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#1d4ed8" />
-        </View>
-      </View>
-    );
-  }
-
-  const maxReceita = Math.max(...lavanderias.map((l) => l.receita), 1);
   const maxProg = Math.max(...programas.map((p) => p.count), 1);
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerStyle={{ paddingBottom: 24 }}>
-      <AdminHeader />
+    <AdminPagina titulo="Relatórios" subtitulo="Veja o desempenho das lavanderias e registre ocorrências para a IA analisar.">
+      <View className={`gap-6 ${largo ? 'flex-row items-start' : ''}`}>
+        <View className={`gap-6 ${largo ? 'flex-1' : ''}`}>
+          {loading ? (
+            <ActivityIndicator size="large" color="#1d4ed8" className="mt-10" />
+          ) : (
+            <>
+              <CardReceita receita={receita}>
+                <IndicadorSimples valor={String(reservas)} rotulo="Reservas" />
+                <IndicadorSimples valor={`${taxaUso}%`} rotulo="Uso" />
+              </CardReceita>
 
-      <TouchableOpacity
-        onPress={() => navigation.navigate('AssistenteIA')}
-        className="mx-4 mt-4 bg-white border-2 border-blue-700 rounded-2xl py-3 px-4 flex-row items-center justify-between"
-      >
-        <View className="flex-row items-center gap-2">
-          <Ionicons name="sparkles" size={20} color="#1d4ed8" />
-          <Text className="text-blue-700 font-bold">Assistente IA — Análise de Ocorrências</Text>
+              <Card>
+                <Text className="text-gray-900 font-bold text-base mb-4">Uso por programa</Text>
+                {programas.length === 0 ? (
+                  <Text className="text-gray-400 text-sm">Sem dados</Text>
+                ) : (
+                  programas.map((p) => <BarRow key={p.tipo} label={p.tipo} valor={p.count} max={maxProg} cor="#1d4ed8" />)
+                )}
+              </Card>
+
+              <Card>
+                <Text className="text-gray-900 font-bold text-base mb-4">Lucro por lavanderia</Text>
+                {lavanderias.length === 0 ? (
+                  <Text className="text-gray-400 text-sm">Sem dados</Text>
+                ) : (
+                  <View>
+                    <View className="flex-row pb-2 px-3 border-b border-gray-100">
+                      <Text className="flex-1 text-xs text-gray-400 font-semibold">Nome</Text>
+                      <Text className="w-24 text-xs text-gray-400 font-semibold text-right">Reservas</Text>
+                      <Text className="w-28 text-xs text-gray-400 font-semibold text-right">Receita</Text>
+                      <Text className="w-16 text-xs text-gray-400 font-semibold text-right">%</Text>
+                    </View>
+                    {lavanderias.map((l, i) => (
+                      <View key={i} className="flex-row py-3 px-3 border-b border-gray-50 items-center">
+                        <Text className="flex-1 text-gray-800 text-sm">{l.nome}</Text>
+                        <Text className="w-24 text-gray-600 text-sm text-right">{l.reservas}</Text>
+                        <Text className="w-28 text-blue-700 text-sm font-semibold text-right">{formatarReais(l.receita)}</Text>
+                        <Text className="w-16 text-gray-400 text-sm text-right">
+                          {receita > 0 ? ((l.receita / receita) * 100).toFixed(0) : 0}%
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </Card>
+            </>
+          )}
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#1d4ed8" />
-      </TouchableOpacity>
-
-      {/* Card receita */}
-      <View className="mx-4 mt-4 bg-blue-700 rounded-3xl p-4">
-        <Text className="text-blue-200 text-xs">Receita total</Text>
-        <Text className="text-white text-3xl font-bold">
-          R$ {receita.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}
-        </Text>
-        <View className="mt-3 flex-row gap-4">
-          <View className="bg-blue-600 rounded-2xl px-4 py-2 flex-1 items-center">
-            <Text className="text-white text-xl font-bold">{reservas}</Text>
-            <Text className="text-blue-200 text-xs">Reservas</Text>
-          </View>
-          <View className="bg-blue-600 rounded-2xl px-4 py-2 flex-1 items-center">
-            <Text className="text-white text-xl font-bold">{taxaUso}%</Text>
-            <Text className="text-blue-200 text-xs">Uso</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Uso por programa */}
-      <View className="mx-4 mt-4 bg-white rounded-3xl p-4">
-        <Text className="text-gray-800 font-bold text-base mb-4">Uso por programa</Text>
-        {programas.length === 0 ? (
-          <Text className="text-gray-400 text-sm">Sem dados</Text>
-        ) : (
-          programas.map((p) => (
-            <BarRow key={p.tipo} label={p.tipo} valor={p.count} max={maxProg} cor="#1d4ed8" />
-          ))
-        )}
-      </View>
-
-      {/* Lucro por lavanderia */}
-      <View className="mx-4 mt-4 bg-white rounded-3xl p-4">
-        <Text className="text-gray-800 font-bold text-base mb-4">Lucro por lavanderia</Text>
-        {lavanderias.length === 0 ? (
-          <Text className="text-gray-400 text-sm">Sem dados</Text>
-        ) : (
-          <View>
-            <View className="flex-row mb-2 px-1">
-              <Text className="flex-1 text-xs text-gray-400 font-bold">NOME</Text>
-              <Text className="w-20 text-xs text-gray-400 font-bold text-right">RESERVAS</Text>
-              <Text className="w-24 text-xs text-gray-400 font-bold text-right">RECEITA</Text>
-              <Text className="w-16 text-xs text-gray-400 font-bold text-right">%</Text>
-            </View>
-            {lavanderias.map((l, i) => (
-              <View key={i} className="flex-row py-2 border-t border-gray-100 px-1 items-center">
-                <Text className="flex-1 text-gray-700 text-sm">{l.nome}</Text>
-                <Text className="w-20 text-gray-500 text-sm text-right">{l.reservas}</Text>
-                <Text className="w-24 text-blue-700 text-sm font-semibold text-right">
-                  R$ {l.receita.toFixed(2)}
-                </Text>
-                <Text className="w-16 text-gray-400 text-xs text-right">
-                  {receita > 0 ? ((l.receita / receita) * 100).toFixed(0) : 0}%
-                </Text>
+          <Card className={largo ? 'flex-1' : ''}>
+            <View className="flex-row items-center gap-3 mb-5">
+              <View className="w-11 h-11 rounded-xl bg-blue-50 items-center justify-center">
+                <Ionicons name="sparkles" size={20} color="#1d4ed8" />
               </View>
-            ))}
-          </View>
-        )}
+              <View className="flex-1">
+                <Text className="text-gray-900 font-bold text-lg">Análise de Ocorrências</Text>
+                <Text className="text-gray-500 text-sm">Registre ocorrências e a IA avalia criticidade e recomendações.</Text>
+              </View>
+            </View>
+            <PainelOcorrencias />
+          </Card>
       </View>
-    </ScrollView>
+    </AdminPagina>
   );
 }

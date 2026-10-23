@@ -14,6 +14,8 @@ reservaRoutes.get("/:id", reservaController.findById);
 
 reservaRoutes.post("/", reservaController.create);
 
+reservaRoutes.post("/:id/cancelar", reservaController.cancelar);
+
 reservaRoutes.patch("/:id/status", autenticaAdmin, reservaController.updateStatus);
 
 reservaRoutes.delete("/:id", reservaController.delete);

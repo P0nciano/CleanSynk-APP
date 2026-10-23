@@ -1,19 +1,32 @@
 import { Request, Response } from "express";
 import { AuthRequest, podeAcessar } from "../middlewares/autentica";
 import bcrypt from "bcrypt";
+import { timingSafeEqual } from "crypto";
 import { TipoUsuario } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
+
+function codigoAdminValido(codigo: unknown) {
+  const esperado = process.env.ADMIN_SIGNUP_CODE;
+  if (!esperado || typeof codigo !== "string" || codigo.length !== esperado.length) return false;
+  return timingSafeEqual(Buffer.from(codigo), Buffer.from(esperado));
+}
 
 export class UsuarioController {
   async create(req: Request, res: Response) {
     try {
-      const { nome, email, senha } = req.body;
+      const { nome, email, senha, tipo, codigo_admin } = req.body;
 
       if (!nome || !email || !senha) {
         return res.status(400).json({ error: "nome, email e senha são obrigatórios" });
       }
       if (!/^\S+@\S+\.\S+$/.test(email) || String(senha).length < 6) {
         return res.status(400).json({ error: "E-mail inválido ou senha com menos de 6 caracteres" });
+      }
+
+      // Admin só com o código secreto do grupo (ADMIN_SIGNUP_CODE na Vercel); sem ele, sempre cliente
+      const querAdmin = tipo === TipoUsuario.ADMIN;
+      if (querAdmin && !codigoAdminValido(codigo_admin)) {
+        return res.status(403).json({ error: "Código de administrador inválido" });
       }
 
       const emailExistente = await prisma.usuario.findUnique({ where: { email } });
@@ -27,7 +40,7 @@ export class UsuarioController {
           nome,
           email,
           senha: senhaHash,
-          tipo: TipoUsuario.USER, // cadastro público nunca cria admin
+          tipo: querAdmin ? TipoUsuario.ADMIN : TipoUsuario.USER,
         },
         select: {
           usuario_id: true,

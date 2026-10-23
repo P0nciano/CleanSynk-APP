@@ -3,12 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { Lavanderia, Maquina } from 'src/lib/api';
-
-const PROGRAMAS = [
-  { id: 'secagem', label: 'Secagem (35min)' },
-  { id: 'lava_seca', label: 'Lava e Seca (45min)' },
-];
+import { PROGRAMAS, getPrograma, type Lavanderia, type Maquina } from 'src/lib/api';
 
 export default function EscolherMaquina() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -19,7 +14,7 @@ export default function EscolherMaquina() {
   const [maquinaSelecionada, setMaquinaSelecionada] = useState<Maquina | null>(null);
 
   const maquinas = lavanderia.maquinas ?? [];
-  const valor = programaSelecionado === 'lava_seca' ? 30.00 : 18.00;
+  const valor = getPrograma(programaSelecionado).valor;
 
   function getStatusColor(status: string) {
     if (status === 'LIVRE') return '#22c55e';
@@ -47,7 +42,10 @@ export default function EscolherMaquina() {
               className={`flex-1 py-3 rounded-xl items-center border-2 ${programaSelecionado === p.id ? 'bg-blue-700 border-blue-700' : 'bg-white border-gray-200'}`}
             >
               <Text className={`text-sm font-semibold ${programaSelecionado === p.id ? 'text-white' : 'text-gray-600'}`}>
-                {p.label}
+                {p.nome}
+              </Text>
+              <Text className={`text-xs ${programaSelecionado === p.id ? 'text-blue-100' : 'text-gray-400'}`}>
+                {p.minutos}min · R$ {p.valor.toFixed(2)}
               </Text>
             </TouchableOpacity>
           ))}

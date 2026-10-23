@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AdminHeader from 'src/components/AdminHeader';
+import { useRoute } from '@react-navigation/native';
+import { AdminPagina, AbasSegmentadas, Card } from 'src/components/AdminLayout';
 import { useAuth } from 'src/context/auth';
 
 const API = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -29,7 +30,13 @@ function getBadge(msg: string) {
 
 export default function AdminPerfil() {
   const { user, signOut, token } = useAuth();
+  const route = useRoute<any>();
   const [aba, setAba] = useState<Aba>('Perfil');
+
+  // Sino e "Ver todos" abrem direto na aba de alertas
+  useEffect(() => {
+    if (route.params?.aba) setAba(route.params.aba);
+  }, [route.params?.aba]);
 
   const [alertas, setAlertas] = useState<Notificacao[]>([]);
   const [loadingAlertas, setLoadingAlertas] = useState(false);
@@ -77,29 +84,30 @@ export default function AdminPerfil() {
 
   function renderPerfil() {
     return (
-      <View className="px-4 mt-4">
-        <View className="bg-white rounded-3xl p-5">
-          <View className="flex-row items-center gap-3 mb-4 pb-4 border-b border-gray-100">
-            <View className="w-14 h-14 bg-blue-100 rounded-full items-center justify-center">
-              <Ionicons name="person" size={28} color="#1d4ed8" />
+      <View className="max-w-[820px]">
+        <Card>
+          <View className="flex-row items-center gap-4 mb-5 pb-5 border-b border-gray-100">
+            <View className="w-[72px] h-[72px] bg-blue-100 rounded-full items-center justify-center">
+              <Ionicons name="person" size={32} color="#1d4ed8" />
             </View>
             <View>
-              <Text className="text-gray-800 font-bold text-lg">{user?.nome ?? '—'}</Text>
+              <Text className="text-gray-900 font-bold text-[22px]">{user?.nome ?? '—'}</Text>
               <Text className="text-blue-700 text-sm font-semibold">Administrador</Text>
             </View>
           </View>
-          <View className="gap-3">
+          <View className="gap-4">
             <View className="flex-row items-center gap-3">
               <Ionicons name="mail-outline" size={18} color="#6b7280" />
               <Text className="text-gray-600">{user?.email ?? '—'}</Text>
             </View>
             <View className="flex-row items-center gap-3">
               <Ionicons name="shield-checkmark-outline" size={18} color="#6b7280" />
-              <Text className="text-gray-600">Acesso total ao painel</Text>
+              <Text className="text-gray-600">Acesso às suas lavanderias</Text>
             </View>
           </View>
-        </View>
-        <TouchableOpacity onPress={() => signOut()} className="mt-4 bg-red-50 rounded-2xl py-4 items-center">
+        </Card>
+        <TouchableOpacity onPress={() => signOut()} className="mt-5 bg-red-50 rounded-2xl py-4 flex-row items-center justify-center gap-2">
+          <Ionicons name="log-out-outline" size={20} color="#dc2626" />
           <Text className="text-red-600 font-bold text-base">Sair</Text>
         </TouchableOpacity>
       </View>
@@ -117,11 +125,11 @@ export default function AdminPerfil() {
       );
     }
     return (
-      <View className="px-4 mt-4 gap-3">
+      <View className="max-w-[820px] gap-3">
         {alertas.map((a) => {
           const badge = getBadge(a.mensagem);
           return (
-            <View key={a.notificacao_id} className="bg-white rounded-2xl p-4 flex-row gap-3 items-start">
+            <View key={a.notificacao_id} className="bg-white border border-gray-200 rounded-2xl p-4 flex-row gap-3 items-start">
               <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: badge.cor, marginTop: 4 }} />
               <View className="flex-1">
                 <Text className="text-gray-800 text-sm">{a.mensagem}</Text>
@@ -144,8 +152,8 @@ export default function AdminPerfil() {
 
   function renderPrecos() {
     return (
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        <View className="bg-white rounded-3xl p-4 mb-4">
+      <View className="max-w-[820px]">
+        <View className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
           <Text className="text-gray-800 font-bold text-base mb-3">Preços Padrão</Text>
           <Text className="text-gray-500 text-sm mb-1">Lava e Seca</Text>
           <TextInput className="border border-gray-200 rounded-xl px-3 py-2 mb-2 text-gray-800" value={precoPadrao.lava_seca} onChangeText={(v) => setPrecoPadrao((p) => ({ ...p, lava_seca: v }))} keyboardType="decimal-pad" />
@@ -160,7 +168,7 @@ export default function AdminPerfil() {
         {lavanderias.map((lav) => {
           const p = precosLav[lav.lavanderia_id] ?? { lava_seca: '30,00', secagem: '12,00' };
           return (
-            <View key={lav.lavanderia_id} className="bg-white rounded-3xl p-4 mb-3">
+            <View key={lav.lavanderia_id} className="bg-white border border-gray-200 rounded-2xl p-5 mb-3">
               <Text className="text-gray-800 font-bold text-base mb-3">{lav.nome}</Text>
               <Text className="text-gray-500 text-sm mb-1">Lava e Seca</Text>
               <TextInput className="border border-gray-200 rounded-xl px-3 py-2 mb-2 text-gray-800" value={p.lava_seca} onChangeText={(v) => setPrecosLav((prev) => ({ ...prev, [lav.lavanderia_id]: { ...p, lava_seca: v } }))} keyboardType="decimal-pad" />
@@ -172,25 +180,22 @@ export default function AdminPerfil() {
             </View>
           );
         })}
-      </ScrollView>
+      </View>
     );
   }
 
-  const abas: Aba[] = ['Perfil', 'Alertas', 'Preços'];
-
   return (
-    <View className="flex-1 bg-gray-50">
-      <AdminHeader />
-      <View className="flex-row bg-white mx-4 mt-4 rounded-2xl overflow-hidden">
-        {abas.map((a) => (
-          <TouchableOpacity key={a} onPress={() => setAba(a)} className={`flex-1 py-3 items-center ${aba === a ? 'bg-blue-700' : 'bg-white'}`}>
-            <Text className={`font-semibold text-sm ${aba === a ? 'text-white' : 'text-gray-500'}`}>{a}</Text>
-          </TouchableOpacity>
-        ))}
+    <AdminPagina titulo="Perfil" subtitulo="Gerencie sua conta, veja os alertas e ajuste os preços.">
+      <View className="mb-6">
+        <AbasSegmentadas
+          abas={(['Perfil', 'Alertas', 'Preços'] as Aba[]).map((a) => ({ id: a, rotulo: a }))}
+          ativa={aba}
+          onChange={setAba}
+        />
       </View>
-      {aba === 'Perfil' && <ScrollView>{renderPerfil()}</ScrollView>}
-      {aba === 'Alertas' && <ScrollView>{renderAlertas()}</ScrollView>}
+      {aba === 'Perfil' && renderPerfil()}
+      {aba === 'Alertas' && renderAlertas()}
       {aba === 'Preços' && renderPrecos()}
-    </View>
+    </AdminPagina>
   );
 }

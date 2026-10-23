@@ -4,10 +4,12 @@ import { AuthRequest, podeAcessar } from "../middlewares/autentica";
 
 export class NotificacaoController {
 
-  async findAll(req: Request, res: Response) {
+  // Admin: só os próprios alertas (cada um recebe os avisos das lavanderias dele)
+  async findAll(req: AuthRequest, res: Response) {
     try {
 
       const notificacoes = await prisma.notificacao.findMany({
+        where: { usuario_id: req.user!.id },
         include: {
           usuario: usuarioPublico
         },
