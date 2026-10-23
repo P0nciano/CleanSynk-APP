@@ -10,5 +10,6 @@ lavanderiasRoutes.get("/geocode", lavanderiaController.geocode);
 lavanderiasRoutes.get("/proximas", lavanderiaController.findNearby);
 lavanderiasRoutes.get("/:id", lavanderiaController.findById);
 lavanderiasRoutes.post("/", autenticaAdmin, lavanderiaController.create);
+lavanderiasRoutes.patch("/:id/precos", autenticaAdmin, lavanderiaController.atualizarPrecos);
 
 export { lavanderiasRoutes };

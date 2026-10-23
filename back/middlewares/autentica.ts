@@ -31,9 +31,9 @@ export function autentica(req: AuthRequest, res: Response, next: NextFunction) {
   }
 }
 
-// Dono do recurso ou admin
+// Só o próprio usuário (admin também não acessa perfil/notificações de outros)
 export function podeAcessar(req: AuthRequest, usuarioId: number) {
-  return Boolean(req.admin) || req.user?.id === usuarioId;
+  return req.user?.id === usuarioId;
 }
 
 export function autenticaAdmin(req: AuthRequest, res: Response, next: NextFunction) {

@@ -44,6 +44,11 @@ model Lavanderia {
   proprietario_id Int
   proprietario    Usuario @relation(fields: [proprietario_id], references: [usuario_id])
 
+  // Preço de cada programa nesta lavanderia; vazio = preço padrão (PRECO_PROGRAMA)
+  preco_lavagem   Decimal? @db.Decimal(10, 2)
+  preco_secagem   Decimal? @db.Decimal(10, 2)
+  preco_lava_seca Decimal? @db.Decimal(10, 2)
+
   // Relacionamentos
   maquinas        Maquina[]
   ocorrencia      Ocorrencia[]
@@ -113,6 +118,16 @@ model Pagamento {
   data_pagamento  DateTime
 
   @@map("pagamento")
+}
+
+// Códigos de admin errados no cadastro (limite de tentativas)
+model TentativaAdmin {
+  tentativa_id Int      @id @default(autoincrement())
+  ip           String
+  createdAt    DateTime @default(now())
+
+  @@index([ip, createdAt])
+  @@map("tentativa_admin")
 }
 
 model Log {
