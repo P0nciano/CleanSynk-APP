@@ -3,7 +3,7 @@ import { AuthRequest, podeAcessar } from "../middlewares/autentica";
 import bcrypt from "bcrypt";
 import { timingSafeEqual } from "crypto";
 import { TipoUsuario } from "../generated/prisma/client";
-import { prisma } from "../lib/prisma";
+import { prisma, lavanderiasDo } from "../lib/prisma";
 
 function codigoAdminValido(codigo: unknown) {
   const esperado = process.env.ADMIN_SIGNUP_CODE;
@@ -25,8 +25,20 @@ export class UsuarioController {
 
       // Admin só com o código secreto do grupo (ADMIN_SIGNUP_CODE na Vercel); sem ele, sempre cliente
       const querAdmin = tipo === TipoUsuario.ADMIN;
-      if (querAdmin && !codigoAdminValido(codigo_admin)) {
-        return res.status(403).json({ error: "Código de administrador inválido" });
+      if (querAdmin) {
+        // Limite no banco (na Vercel cada requisição pode cair numa instância diferente)
+        const ip = String(req.headers["x-forwarded-for"] ?? req.ip ?? "").split(",")[0].trim();
+        const [doIp, total] = await Promise.all([
+          prisma.tentativaAdmin.count({ where: { ip, createdAt: { gt: new Date(Date.now() - 15 * 60_000) } } }),
+          prisma.tentativaAdmin.count({ where: { createdAt: { gt: new Date(Date.now() - 60 * 60_000) } } }),
+        ]);
+        if (doIp >= 5 || total >= 30) {
+          return res.status(429).json({ error: "Muitas tentativas com código de administrador. Tente de novo mais tarde." });
+        }
+        if (!codigoAdminValido(codigo_admin)) {
+          await prisma.tentativaAdmin.create({ data: { ip } });
+          return res.status(403).json({ error: "Código de administrador inválido" });
+        }
       }
 
       const emailExistente = await prisma.usuario.findUnique({ where: { email } });
@@ -57,9 +69,10 @@ export class UsuarioController {
     }
   }
 
-  async findAll(req: Request, res: Response) {
+  async findAll(req: AuthRequest, res: Response) {
     try {
       const usuarios = await prisma.usuario.findMany({
+        where: { reservas: { some: { maquina: { lavanderia: lavanderiasDo(req) } } } },
         select: {
           usuario_id: true,
           nome: true,

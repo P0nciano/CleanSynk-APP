@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import { AdminPagina, AbasSegmentadas, Card } from 'src/components/AdminLayout';
 import { useAuth } from 'src/context/auth';
+import { PROGRAMAS, salvarPrecosLavanderia, type Lavanderia } from 'src/lib/api';
 
 const API = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 type Aba = 'Perfil' | 'Alertas' | 'Preços';
@@ -15,8 +16,10 @@ type Notificacao = {
   createdAt: string;
 };
 
-type Lavanderia = { lavanderia_id: number; nome: string };
-type PrecoLocal = { lava_seca: string; secagem: string };
+// Texto digitado por programa (lavagem, secagem, lava_seca); vazio = preço padrão
+type PrecoLocal = Record<string, string>;
+
+const paraTexto = (v?: string | null) => (v == null ? '' : Number(v).toFixed(2).replace('.', ','));
 
 function getBadge(msg: string) {
   const m = msg.toLowerCase();
@@ -42,7 +45,6 @@ export default function AdminPerfil() {
   const [loadingAlertas, setLoadingAlertas] = useState(false);
 
   const [lavanderias, setLavanderias] = useState<Lavanderia[]>([]);
-  const [precoPadrao, setPrecoPadrao] = useState<PrecoLocal>({ lava_seca: '30,00', secagem: '12,00' });
   const [precosLav, setPrecosLav] = useState<Record<number, PrecoLocal>>({});
   const [savingPreco, setSavingPreco] = useState<number | null>(null);
 
@@ -70,16 +72,34 @@ export default function AdminPerfil() {
       const data: Lavanderia[] = await res.json();
       setLavanderias(data);
       const init: Record<number, PrecoLocal> = {};
-      data.forEach((l) => { init[l.lavanderia_id] = { lava_seca: '30,00', secagem: '12,00' }; });
+      data.forEach((l) => {
+        init[l.lavanderia_id] = Object.fromEntries(PROGRAMAS.map((pr) => [pr.id, paraTexto(l[`preco_${pr.id}` as 'preco_lavagem'])]));
+      });
       setPrecosLav(init);
     }
   }
 
-  async function salvarPreco(lavanderia_id?: number) {
-    setSavingPreco(lavanderia_id ?? 0);
-    await new Promise((r) => setTimeout(r, 600));
-    setSavingPreco(null);
-    Alert.alert('Salvo', 'Preços atualizados com sucesso!');
+  async function salvarPreco(lavanderia_id: number) {
+    const textos = precosLav[lavanderia_id] ?? {};
+    const corpo: Record<string, number | null> = {};
+    for (const pr of PROGRAMAS) {
+      const t = (textos[pr.id] ?? '').trim().replace(',', '.');
+      const n = Number(t);
+      if (t && (!Number.isFinite(n) || n < 1 || n > 999)) {
+        Alert.alert('Preço inválido', `${pr.nome}: use um valor entre 1,00 e 999,00.`);
+        return;
+      }
+      corpo[`preco_${pr.id}`] = t ? n : null;
+    }
+    setSavingPreco(lavanderia_id);
+    try {
+      await salvarPrecosLavanderia(lavanderia_id, corpo, token ?? undefined);
+      Alert.alert('Salvo', 'Preços atualizados. Os clientes já pagam os novos valores.');
+    } catch (e) {
+      Alert.alert('Erro', e instanceof Error ? e.message : 'Não foi possível salvar');
+    } finally {
+      setSavingPreco(null);
+    }
   }
 
   function renderPerfil() {
@@ -153,31 +173,42 @@ export default function AdminPerfil() {
   function renderPrecos() {
     return (
       <View className="max-w-[820px]">
-        <View className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
-          <Text className="text-gray-800 font-bold text-base mb-3">Preços Padrão</Text>
-          <Text className="text-gray-500 text-sm mb-1">Lava e Seca</Text>
-          <TextInput className="border border-gray-200 rounded-xl px-3 py-2 mb-2 text-gray-800" value={precoPadrao.lava_seca} onChangeText={(v) => setPrecoPadrao((p) => ({ ...p, lava_seca: v }))} keyboardType="decimal-pad" />
-          <Text className="text-gray-500 text-sm mb-1">Secagem</Text>
-          <TextInput className="border border-gray-200 rounded-xl px-3 py-2 mb-3 text-gray-800" value={precoPadrao.secagem} onChangeText={(v) => setPrecoPadrao((p) => ({ ...p, secagem: v }))} keyboardType="decimal-pad" />
-          <TouchableOpacity onPress={() => salvarPreco()} className="bg-blue-700 rounded-2xl py-3 items-center">
-            {savingPreco === 0 ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Salvar Preços</Text>}
-          </TouchableOpacity>
-        </View>
-
-        <Text className="text-gray-600 font-bold text-sm mb-2 ml-1">Por Lavanderia</Text>
+        <Text className="text-gray-500 text-sm mb-4">
+          Deixe em branco para usar o preço padrão ({PROGRAMAS.map((pr) => `${pr.nome} R$ ${pr.valor},00`).join(' · ')}).
+        </Text>
+        {lavanderias.length === 0 && (
+          <View className="bg-white border border-dashed border-gray-200 rounded-2xl py-10 items-center">
+            <Text className="text-gray-400">Cadastre uma lavanderia para definir preços.</Text>
+          </View>
+        )}
         {lavanderias.map((lav) => {
-          const p = precosLav[lav.lavanderia_id] ?? { lava_seca: '30,00', secagem: '12,00' };
+          const p = precosLav[lav.lavanderia_id] ?? {};
           return (
-            <View key={lav.lavanderia_id} className="bg-white border border-gray-200 rounded-2xl p-5 mb-3">
-              <Text className="text-gray-800 font-bold text-base mb-3">{lav.nome}</Text>
-              <Text className="text-gray-500 text-sm mb-1">Lava e Seca</Text>
-              <TextInput className="border border-gray-200 rounded-xl px-3 py-2 mb-2 text-gray-800" value={p.lava_seca} onChangeText={(v) => setPrecosLav((prev) => ({ ...prev, [lav.lavanderia_id]: { ...p, lava_seca: v } }))} keyboardType="decimal-pad" />
-              <Text className="text-gray-500 text-sm mb-1">Secagem</Text>
-              <TextInput className="border border-gray-200 rounded-xl px-3 py-2 mb-3 text-gray-800" value={p.secagem} onChangeText={(v) => setPrecosLav((prev) => ({ ...prev, [lav.lavanderia_id]: { ...p, secagem: v } }))} keyboardType="decimal-pad" />
-              <TouchableOpacity onPress={() => salvarPreco(lav.lavanderia_id)} className="bg-blue-700 rounded-2xl py-3 items-center">
-                {savingPreco === lav.lavanderia_id ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Salvar Preços</Text>}
+            <Card key={lav.lavanderia_id} className="mb-4">
+              <Text className="text-gray-900 font-bold text-base mb-4">{lav.nome}</Text>
+              <View className="flex-row flex-wrap gap-3 mb-4">
+                {PROGRAMAS.map((pr) => (
+                  <View key={pr.id} className="flex-1 min-w-[140px]">
+                    <Text className="text-gray-500 text-sm mb-1">{pr.nome} · {pr.minutos} min</Text>
+                    <View className="flex-row items-center border border-gray-200 rounded-xl px-3">
+                      <Text className="text-gray-400 mr-1">R$</Text>
+                      <TextInput
+                        className="flex-1 py-2.5 text-gray-800"
+                        value={p[pr.id] ?? ''}
+                        placeholder={`${pr.valor},00`}
+                        placeholderTextColor="#9ca3af"
+                        keyboardType="decimal-pad"
+                        accessibilityLabel={`Preço ${pr.nome} em ${lav.nome}`}
+                        onChangeText={(v) => setPrecosLav((prev) => ({ ...prev, [lav.lavanderia_id]: { ...p, [pr.id]: v } }))}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <TouchableOpacity onPress={() => salvarPreco(lav.lavanderia_id)} disabled={savingPreco !== null} className="bg-blue-700 rounded-xl py-3 items-center">
+                {savingPreco === lav.lavanderia_id ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold">Salvar preços</Text>}
               </TouchableOpacity>
-            </View>
+            </Card>
           );
         })}
       </View>

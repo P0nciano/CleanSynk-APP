@@ -199,6 +199,33 @@ export class LavanderiaController {
     }
   }
 
+  // PATCH /lavanderias/:id/precos — só o dono; null volta ao preço padrão
+  async atualizarPrecos(req: AuthRequest, res: Response) {
+    try {
+      const lavanderia = await prisma.lavanderia.findUnique({ where: { lavanderia_id: Number(req.params.id) } });
+      if (!lavanderia) return res.status(404).json({ error: "Lavanderia não encontrada" });
+      if (lavanderia.proprietario_id !== req.admin!.id) return res.status(403).json({ error: "Esta lavanderia não é sua" });
+
+      const data: Record<string, number | null> = {};
+      for (const campo of ["preco_lavagem", "preco_secagem", "preco_lava_seca"]) {
+        const valor = req.body?.[campo];
+        if (valor === undefined) continue;
+        if (valor === null) { data[campo] = null; continue; }
+        const numero = Number(valor);
+        if (!Number.isFinite(numero) || numero < 1 || numero > 999) {
+          return res.status(400).json({ error: "Os preços devem ficar entre R$ 1,00 e R$ 999,00" });
+        }
+        data[campo] = Math.round(numero * 100) / 100;
+      }
+
+      const atualizada = await prisma.lavanderia.update({ where: { lavanderia_id: lavanderia.lavanderia_id }, data });
+      return res.status(200).json(atualizada);
+    } catch (error) {
+      console.error("Erro ao salvar preços:", error);
+      return res.status(500).json({ error: "Erro ao salvar preços" });
+    }
+  }
+
   async findAll(req: AuthRequest, res: Response) {
     try {
       const lavanderias = await prisma.lavanderia.findMany({

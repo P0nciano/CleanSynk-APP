@@ -10,6 +10,10 @@ export type Lavanderia = {
   longitude: number;
   distanciaKm?: number;
   maquinas?: Maquina[];
+  // Decimal chega como texto; null = preço padrão do programa
+  preco_lavagem?: string | null;
+  preco_secagem?: string | null;
+  preco_lava_seca?: string | null;
 };
 
 export type Maquina = {
@@ -181,7 +185,7 @@ export async function updateUsuario(id: number, data: { nome?: string; email?: s
   return apiFetch<AuthUser>(`/usuarios/${id}`, { method: "PATCH", body: data, token });
 }
 
-// Programas de lavagem: preço e duração (o preço cobrado vem do servidor, PRECO_PROGRAMA no PagamentoController)
+// Programas de lavagem: duração e preço padrão (o preço cobrado vem do servidor, PRECO_PROGRAMA no PagamentoController)
 export const PROGRAMAS = [
   { id: 'lavagem', nome: 'Lavagem', minutos: 30, valor: 20 },
   { id: 'secagem', nome: 'Secagem', minutos: 35, valor: 18 },
@@ -190,6 +194,16 @@ export const PROGRAMAS = [
 
 export function getPrograma(id: string) {
   return PROGRAMAS.find((p) => p.id === id) ?? PROGRAMAS[2];
+}
+
+// Preço do programa nesta lavanderia (o mesmo que o servidor cobra)
+export function precoNaLavanderia(id: string, lavanderia?: Lavanderia) {
+  const proprio = lavanderia?.[`preco_${id}` as 'preco_lavagem'];
+  return proprio != null ? Number(proprio) : getPrograma(id).valor;
+}
+
+export async function salvarPrecosLavanderia(id: number, precos: Partial<Record<'preco_lavagem' | 'preco_secagem' | 'preco_lava_seca', number | null>>, token?: string) {
+  return apiFetch<Lavanderia>(`/lavanderias/${id}/precos`, { method: "PATCH", body: precos, token });
 }
 
 // Só conta o que o Stripe confirmou

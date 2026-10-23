@@ -39,7 +39,7 @@ export class ReservaController {
   async findByUsuario(req: AuthRequest, res: Response) {
     try {
       const usuarioId = Number(req.params.usuarioId);
-      if (!podeAcessar(req, usuarioId)) return res.status(403).json({ error: "Acesso negado" });
+      if (!req.admin && !podeAcessar(req, usuarioId)) return res.status(403).json({ error: "Acesso negado" });
       const reservas = await prisma.reserva.findMany({
         // Admin consultando outro usuário só vê reservas nas lavanderias dele
         where: { usuario_id: usuarioId, ...(req.user!.id !== usuarioId && { maquina: { lavanderia: lavanderiasDo(req) } }) },

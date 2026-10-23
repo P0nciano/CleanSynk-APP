@@ -7,7 +7,7 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2022-11-15",
 });
 
-// shortcut: preço fixo por programa (igual ao PROGRAMAS de front/src/lib/api.ts); trocar pela tabela Preco quando cada máquina tiver preços cadastrados
+// Preço padrão de cada programa (igual ao PROGRAMAS de front/src/lib/api.ts); a lavanderia pode ter o seu (preco_<programa>)
 const PRECO_PROGRAMA: Record<string, number> = { lavagem: 20, secagem: 18, lava_seca: 30 };
 
 // Valida a cobrança (dono da reserva, ainda não paga) e calcula o valor no servidor.
@@ -15,16 +15,14 @@ const PRECO_PROGRAMA: Record<string, number> = { lavagem: 20, secagem: 18, lava_
 async function prepararCobranca(req: AuthRequest, res: Response) {
   const { reserva_id, programa } = req.body;
 
-  // O valor vem do servidor, nunca do app
-  const valorNumerico = PRECO_PROGRAMA[programa];
-  if (!reserva_id || !valorNumerico) {
+  if (!reserva_id || !Object.hasOwn(PRECO_PROGRAMA, programa)) {
     res.status(400).json({ error: "reserva_id e programa válidos são obrigatórios" });
     return null;
   }
 
   const reserva = await prisma.reserva.findUnique({
     where: { reserva_id: Number(reserva_id) },
-    include: { pagamentos: true },
+    include: { pagamentos: true, maquina: { include: { lavanderia: true } } },
   });
 
   if (!reserva) {
@@ -39,6 +37,10 @@ async function prepararCobranca(req: AuthRequest, res: Response) {
     res.status(409).json({ error: "Esta reserva já possui um pagamento confirmado" });
     return null;
   }
+
+  // O valor vem do servidor, nunca do app: preço da lavanderia ou o padrão
+  const lavanderia = reserva.maquina.lavanderia as unknown as Record<string, unknown>;
+  const valorNumerico = Number(lavanderia[`preco_${programa}`] ?? PRECO_PROGRAMA[programa]);
 
   return {
     amount: Math.round(valorNumerico * 100),

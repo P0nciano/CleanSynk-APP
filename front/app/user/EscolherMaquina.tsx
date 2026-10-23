@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { PROGRAMAS, getPrograma, type Lavanderia, type Maquina } from 'src/lib/api';
+import { PROGRAMAS, precoNaLavanderia, type Lavanderia, type Maquina } from 'src/lib/api';
 
 export default function EscolherMaquina() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
@@ -14,7 +14,7 @@ export default function EscolherMaquina() {
   const [maquinaSelecionada, setMaquinaSelecionada] = useState<Maquina | null>(null);
 
   const maquinas = lavanderia.maquinas ?? [];
-  const valor = getPrograma(programaSelecionado).valor;
+  const valor = precoNaLavanderia(programaSelecionado, lavanderia);
 
   function getStatusColor(status: string) {
     if (status === 'LIVRE') return '#22c55e';
@@ -45,7 +45,7 @@ export default function EscolherMaquina() {
                 {p.nome}
               </Text>
               <Text className={`text-xs ${programaSelecionado === p.id ? 'text-blue-100' : 'text-gray-400'}`}>
-                {p.minutos}min · R$ {p.valor.toFixed(2)}
+                {p.minutos}min · R$ {precoNaLavanderia(p.id, lavanderia).toFixed(2)}
               </Text>
             </TouchableOpacity>
           ))}
