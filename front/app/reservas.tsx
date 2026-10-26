@@ -1,14 +1,18 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Header from 'src/components/header';
+import { Ionicons } from '@expo/vector-icons';
+import ReservaDetalheModal from 'src/components/ReservaDetalheModal';
 import { useAuth } from 'src/context/auth';
-import { cancelarComEstorno, getReservasUsuario, type Reserva } from 'src/lib/api';
+import { getReservasUsuario, type Reserva } from 'src/lib/api';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-const STATUS_LABEL: Record<string, string> = { ATIVA: 'Ativa', PAGA: 'Paga', CANCELADA: 'Cancelada', CONCLUIDA: 'Concluída' };
+const STATUS_LABEL: Record<string, string> = { ATIVA: 'Ativa', AGUARDANDO_PAGAMENTO: 'Aguardando pagamento', PAGA: 'Paga', AGENDADA: 'Agendada', CANCELADA: 'Cancelada', CONCLUIDA: 'Concluída' };
 const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
   ATIVA: { bg: '#dbeafe', text: '#1d4ed8' },
+  AGUARDANDO_PAGAMENTO: { bg: '#fef3c7', text: '#b45309' },
+  AGENDADA: { bg: '#ede9fe', text: '#6d28d9' },
   PAGA: { bg: '#dbeafe', text: '#1d4ed8' },
   CANCELADA: { bg: '#fee2e2', text: '#dc2626' },
   CONCLUIDA: { bg: '#dcfce7', text: '#15803d' },
@@ -19,7 +23,7 @@ export default function Reservas() {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [cancelando, setCancelando] = useState<number | null>(null);
+  const [aberta, setAberta] = useState<Reserva | null>(null);
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   // Recarrega sempre que a aba aparece: o status muda depois do pagamento e do estorno
@@ -41,28 +45,6 @@ export default function Reservas() {
     carregar();
     return () => { ativo = false; };
   }, [user, token]));
-
-  function confirmarCancelamento(item: Reserva) {
-    Alert.alert('Cancelar reserva', 'O valor pago será devolvido no cartão. Deseja cancelar?', [
-      { text: 'Voltar', style: 'cancel' },
-      {
-        text: 'Cancelar reserva',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setCancelando(item.reserva_id);
-            const { message } = await cancelarComEstorno(item.reserva_id, token!);
-            setReservas((atual) => atual.map((r) => (r.reserva_id === item.reserva_id ? { ...r, status: 'CANCELADA' } : r)));
-            Alert.alert('Pronto', message);
-          } catch (e) {
-            Alert.alert('Erro', e instanceof Error ? e.message : 'Não foi possível cancelar');
-          } finally {
-            setCancelando(null);
-          }
-        },
-      },
-    ]);
-  }
 
   function formatarData(iso: string) {
     return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -95,16 +77,24 @@ export default function Reservas() {
         </View>
       ) : (
         reservas.map((item) => {
-          const cor = STATUS_COLOR[item.status] ?? { bg: '#f3f4f6', text: '#4b5563' };
+          // Paga e com início no futuro = agendada
+          const status = item.status === 'PAGA' && new Date(item.data_inicio) > new Date() ? 'AGENDADA' : item.status;
+          const cor = STATUS_COLOR[status] ?? { bg: '#f3f4f6', text: '#4b5563' };
           return (
-            <View key={item.reserva_id} className="mx-4 mt-3 bg-white border border-gray-200 rounded-2xl p-4">
+            <TouchableOpacity
+              key={item.reserva_id}
+              onPress={() => setAberta(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver detalhes da reserva da máquina ${item.maquina?.numero ?? item.maquina_id}`}
+              className="mx-4 mt-3 bg-white border border-gray-200 rounded-2xl p-4"
+            >
               <View className="flex-row justify-between items-center">
                 <Text className="text-base font-bold text-gray-900">
                   Máquina {item.maquina?.numero?.toString().padStart(2, '0') ?? item.maquina_id}
                 </Text>
                 <View style={{ backgroundColor: cor.bg, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 }}>
                   <Text style={{ color: cor.text, fontSize: 12, fontWeight: '700' }}>
-                    {STATUS_LABEL[item.status] ?? item.status}
+                    {STATUS_LABEL[status] ?? status}
                   </Text>
                 </View>
               </View>
@@ -124,23 +114,21 @@ export default function Reservas() {
                   </Text>
                 </View>
               )}
-              {item.status === 'PAGA' && (
-                <TouchableOpacity
-                  onPress={() => confirmarCancelamento(item)}
-                  disabled={cancelando === item.reserva_id}
-                  className="mt-3 border border-red-300 rounded-2xl py-2 items-center"
-                >
-                  {cancelando === item.reserva_id ? (
-                    <ActivityIndicator color="#dc2626" />
-                  ) : (
-                    <Text className="text-red-600 font-semibold">Cancelar e estornar</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
+              <View className="flex-row items-center justify-end mt-3">
+                <Text className="text-blue-700 text-sm font-semibold">Ver detalhes</Text>
+                <Ionicons name="chevron-forward" size={16} color="#1d4ed8" />
+              </View>
+            </TouchableOpacity>
           );
         })
       )}
+
+      <ReservaDetalheModal
+        reserva={aberta}
+        onFechar={() => setAberta(null)}
+        // Cancelou no modal: atualiza o card da lista e o próprio modal
+        onAlterada={(r) => { setAberta(r); setReservas((lista) => lista.map((x) => (x.reserva_id === r.reserva_id ? r : x))); }}
+      />
     </ScrollView>
   );
 }

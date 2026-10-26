@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { prisma, usuarioPublico, notificarProprietario, lavanderiasDo, adminDonoDaMaquina, PRAZO_PAGAMENTO_MIN } from "../lib/prisma";
+import { prisma, usuarioPublico, notificarProprietario, lavanderiasDo, adminDonoDaMaquina, maquinaEmUsoAgora, PRAZO_PAGAMENTO_MIN } from "../lib/prisma";
 import { AuthRequest, podeAcessar } from "../middlewares/autentica";
 import { stripe } from "./PagamentoController";
 
@@ -52,6 +52,24 @@ export class ReservaController {
     }
   }
 
+  // GET /reservas/ocupacao/:lavanderiaId — horários já tomados das máquinas, para o app montar a agenda do dia
+  async ocupacao(req: AuthRequest, res: Response) {
+    try {
+      const ocupados = await prisma.reserva.findMany({
+        where: {
+          maquina: { lavanderia_id: Number(req.params.lavanderiaId) || 0 },
+          status: { notIn: ["CANCELADA", "CONCLUIDA"] },
+          data_fim: { gt: new Date() }
+        },
+        select: { maquina_id: true, data_inicio: true, data_fim: true },
+        orderBy: { data_inicio: "asc" }
+      });
+      return res.status(200).json(ocupados);
+    } catch (error) {
+      return res.status(500).json({ error: "Erro ao buscar horários" });
+    }
+  }
+
   async create(req: AuthRequest, res: Response) {
     try {
       const maquina_id = Number(req.body.maquina_id);
@@ -62,9 +80,15 @@ export class ReservaController {
       if (!Number.isInteger(maquina_id) || isNaN(inicio.getTime()) || isNaN(fim.getTime()) || fim <= inicio) {
         return res.status(400).json({ error: "maquina_id, data_inicio e data_fim válidos são obrigatórios" });
       }
+      // Agendamento só no mesmo dia: de agora (2 min de folga para o relógio do celular) até 16 h à frente, programa de até 3 h
+      const agora = Date.now();
+      if (inicio.getTime() < agora - 2 * 60_000 || inicio.getTime() > agora + 16 * 3_600_000 || fim.getTime() - inicio.getTime() > 3 * 3_600_000) {
+        return res.status(400).json({ error: "Escolha um horário de hoje, a partir de agora" });
+      }
 
       const maquina = await prisma.maquina.findUnique({ where: { maquina_id } });
       if (!maquina) return res.status(404).json({ error: "Máquina não encontrada" });
+      if (maquina.status === "MANUTENCAO") return res.status(409).json({ error: "Máquina em manutenção" });
 
       // Tudo ou nada: se uma notificação falhar, a reserva não fica órfã segurando a máquina
       const reserva = await prisma.$transaction(async (tx) => {
@@ -85,7 +109,8 @@ export class ReservaController {
         const nova = await tx.reserva.create({
           data: { maquina_id, usuario_id, data_inicio: inicio, data_fim: fim, status: "AGUARDANDO_PAGAMENTO" }
         });
-        await tx.maquina.update({ where: { maquina_id }, data: { status: "OCUPADA" } });
+        // Agendada para mais tarde: a máquina segue livre até a hora (o liberarExpiradas marca quando começar)
+        if (inicio.getTime() <= agora + 60_000) await tx.maquina.update({ where: { maquina_id }, data: { status: "OCUPADA" } });
         await tx.notificacao.create({ data: { usuario_id, mensagem: "Reserva criada com sucesso" } });
         await notificarProprietario(maquina_id, `Nova reserva criada — Máquina ${maquina.numero} (usuário #${usuario_id})`, tx);
         return nova;
@@ -125,14 +150,8 @@ export class ReservaController {
         return res.status(409).json({ error: "Reserva com pagamento não pode ser excluída. Use cancelar." });
       }
 
-      // Só libera máquina se não houver outra reserva ativa
-      const outraAtiva = await prisma.reserva.findFirst({
-        where: {
-          maquina_id: reserva.maquina_id,
-          reserva_id: { not: reserva.reserva_id },
-          status: { notIn: ["CANCELADA", "CONCLUIDA"] }
-        }
-      });
+      // Só libera a máquina se ninguém mais estiver usando agora
+      const outraAtiva = await maquinaEmUsoAgora(reserva.maquina_id, reserva.reserva_id);
 
       if (!outraAtiva) {
         await prisma.maquina.update({
@@ -182,13 +201,7 @@ export class ReservaController {
         if (pago) await tx.pagamento.update({ where: { pagamento_id: pago.pagamento_id }, data: { status: "ESTORNADO" } });
         await tx.reserva.update({ where: { reserva_id: reserva.reserva_id }, data: { status: "CANCELADA" } });
 
-        const outraAtiva = await tx.reserva.findFirst({
-          where: {
-            maquina_id: reserva.maquina_id,
-            reserva_id: { not: reserva.reserva_id },
-            status: { notIn: ["CANCELADA", "CONCLUIDA"] }
-          }
-        });
+        const outraAtiva = await maquinaEmUsoAgora(reserva.maquina_id, reserva.reserva_id, tx);
         if (!outraAtiva) await tx.maquina.update({ where: { maquina_id: reserva.maquina_id }, data: { status: "LIVRE" } });
 
         const valor = pago ? ` — R$ ${Number(pago.valor).toFixed(2)} estornado` : "";
@@ -205,17 +218,28 @@ export class ReservaController {
 
   // Libera reservas expiradas automaticamente:
   // - PAGA com o tempo do programa acabado -> CONCLUIDA
-  // - sem pagamento (AGUARDANDO_PAGAMENTO/ATIVA) depois de PRAZO_PAGAMENTO_MIN ou do fim do programa -> CANCELADA
+  // - sem pagamento (AGUARDANDO_PAGAMENTO/ATIVA) PRAZO_PAGAMENTO_MIN depois de criada, ou no fim do programa -> CANCELADA
+  // - agendada que chegou na hora -> máquina OCUPADA
   async liberarExpiradas() {
     try {
       const agora = new Date();
       const limitePagamento = new Date(agora.getTime() - PRAZO_PAGAMENTO_MIN * 60_000);
+
+      // Agendadas que chegaram na hora: a máquina passa a constar como em uso (manutenção não é sobrescrita)
+      await prisma.maquina.updateMany({
+        where: {
+          status: "LIVRE",
+          reservas: { some: { status: { notIn: ["CANCELADA", "CONCLUIDA"] }, data_inicio: { lte: agora }, data_fim: { gt: agora } } }
+        },
+        data: { status: "OCUPADA" }
+      });
+
       const expiradas = await prisma.reserva.findMany({
         where: {
           OR: [
             { status: "PAGA", data_fim: { lt: agora } },
             // O app cria como AGUARDANDO_PAGAMENTO; ATIVA vem de reservas antigas
-            { status: { in: ["AGUARDANDO_PAGAMENTO", "ATIVA"] }, OR: [{ data_inicio: { lt: limitePagamento } }, { data_fim: { lt: agora } }] },
+            { status: { in: ["AGUARDANDO_PAGAMENTO", "ATIVA"] }, OR: [{ createdAt: { lt: limitePagamento } }, { data_fim: { lt: agora } }] },
           ]
         },
         include: { maquina: true }
@@ -230,14 +254,8 @@ export class ReservaController {
         });
         if (count === 0) continue;
 
-        // Verifica se há outra reserva ativa na mesma máquina
-        const outraAtiva = await prisma.reserva.findFirst({
-          where: {
-            maquina_id: reserva.maquina_id,
-            reserva_id: { not: reserva.reserva_id },
-            status: { notIn: ["CANCELADA", "CONCLUIDA"] }
-          }
-        });
+        // Só libera a máquina se ninguém mais estiver usando agora
+        const outraAtiva = await maquinaEmUsoAgora(reserva.maquina_id, reserva.reserva_id);
 
         if (!outraAtiva) {
           await prisma.maquina.update({

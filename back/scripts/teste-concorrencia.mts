@@ -20,8 +20,8 @@ if (!login.ok) throw new Error(`Login falhou: ${login.status} ${await login.text
 const { token } = (await login.json()) as { token: string };
 const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 
-// Horário no futuro distante para não colidir com reservas reais
-const inicio = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+// Daqui a 2 h: dentro da janela de agendamento do dia e sem marcar a máquina como ocupada agora
+const inicio = new Date(Date.now() + 2 * 60 * 60 * 1000);
 const fim = new Date(inicio.getTime() + 45 * 60 * 1000);
 const corpo = JSON.stringify({ maquina_id, data_inicio: inicio.toISOString(), data_fim: fim.toISOString() });
 

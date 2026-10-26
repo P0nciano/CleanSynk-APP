@@ -84,6 +84,8 @@ model Reserva {
   data_inicio    DateTime
   data_fim       DateTime
   status         String
+  // Quando a reserva foi feita: o prazo de pagamento conta daqui, não do horário agendado
+  createdAt      DateTime @default(now())
 
   // Relacionamentos
   pagamentos     Pagamento[]

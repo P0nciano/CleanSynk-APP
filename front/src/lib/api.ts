@@ -39,7 +39,7 @@ export type Reserva = {
   data_inicio: string;
   data_fim: string;
   status: string;
-  maquina?: Maquina;
+  maquina?: Maquina & { lavanderia?: Lavanderia };
   pagamentos?: Pagamento[];
 };
 
@@ -48,6 +48,7 @@ export type Pagamento = {
   valor: number;
   status: string;
   metodo: string;
+  data_pagamento?: string;
 };
 
 export type Notificacao = {
@@ -138,6 +139,13 @@ export async function getLavanderia(id: number, token?: string) {
 
 export async function getReservasUsuario(usuarioId: number, token?: string) {
   return apiFetch<Reserva[]>(`/reservas/usuario/${usuarioId}`, { token });
+}
+
+// Horário já tomado de uma máquina (sem dados de quem reservou)
+export type Ocupacao = { maquina_id: number; data_inicio: string; data_fim: string };
+
+export async function getOcupacao(lavanderiaId: number, token?: string) {
+  return apiFetch<Ocupacao[]>(`/reservas/ocupacao/${lavanderiaId}`, { token });
 }
 
 export async function criarReserva(data: {

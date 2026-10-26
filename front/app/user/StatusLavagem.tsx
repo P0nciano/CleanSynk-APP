@@ -5,6 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getPrograma } from 'src/lib/api';
 import CabecalhoTela from 'src/components/CabecalhoTela';
+import { hhmm } from 'src/lib/agenda';
 
 // Etapas de cada programa; as do meio dividem o tempo do programa em partes iguais
 const ETAPAS_DO_PROGRAMA: Record<string, string[]> = {
@@ -16,7 +17,10 @@ const ETAPAS_DO_PROGRAMA: Record<string, string[]> = {
 export default function StatusLavagem() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<any>();
-  const { lavanderia, maquina, programa } = route.params;
+  const { lavanderia, maquina, programa, inicio } = route.params;
+  // Agendada para mais tarde: mostra o horário em vez do cronômetro
+  const comeca = inicio ? new Date(inicio) : null;
+  const agendada = comeca !== null && comeca.getTime() > Date.now();
 
   const total = getPrograma(programa).minutos * 60;
   const [segundos, setSegundos] = useState(total);
@@ -33,6 +37,36 @@ export default function StatusLavagem() {
   const min = Math.floor(segundos / 60).toString().padStart(2, '0');
   const sec = (segundos % 60).toString().padStart(2, '0');
   const numero = String(maquina?.numero ?? 0).padStart(2, '0');
+
+  if (agendada) {
+    const termina = new Date(comeca!.getTime() + total * 1000);
+    return (
+      <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 32 }}>
+        <CabecalhoTela titulo="Lavagem agendada" subtitulo={lavanderia?.nome} semVoltar />
+        <View className="mx-4 mt-6 bg-white border border-gray-200 rounded-3xl p-6 items-center">
+          <View className="w-20 h-20 rounded-full bg-blue-50 items-center justify-center mb-4">
+            <Ionicons name="calendar-outline" size={36} color="#1d4ed8" />
+          </View>
+          <Text className="text-gray-500 text-sm">Hoje, das</Text>
+          <Text className="text-blue-700 text-4xl font-bold mt-1">{hhmm(comeca!)} às {hhmm(termina)}</Text>
+          <Text className="text-gray-900 font-bold text-lg mt-3">Máquina {numero} · {getPrograma(programa).nome}</Text>
+          <Text className="text-gray-500 text-sm text-center mt-2">Pagamento confirmado. A máquina fica reservada para você nesse horário.</Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('UserTabs', { screen: 'Reservas' })}
+          className="mx-4 mt-5 bg-blue-700 rounded-2xl py-4 items-center"
+        >
+          <Text className="text-white font-bold text-base">Ver minhas reservas</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('UserTabs', { screen: 'Home' })}
+          className="mx-4 mt-3 border-2 border-blue-700 rounded-2xl py-4 items-center"
+        >
+          <Text className="text-blue-700 font-bold text-base">Voltar ao início</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView className="flex-1 bg-[#f5f7fb]" contentContainerStyle={{ paddingBottom: 32 }}>

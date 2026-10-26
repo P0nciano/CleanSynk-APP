@@ -30,6 +30,21 @@ export async function adminDonoDaMaquina(req: { admin?: { id: number } }, maquin
   return Boolean(req.admin) && (await proprietarioDaMaquina(maquinaId)) === req.admin!.id;
 }
 
+// Em uso agora = outra reserva não encerrada cujo horário inclui este instante (as agendadas para mais tarde não contam)
+export async function maquinaEmUsoAgora(maquinaId: number, exceto: number, db: Pick<typeof prisma, "reserva"> = prisma) {
+  const agora = new Date();
+  const outra = await db.reserva.findFirst({
+    where: {
+      maquina_id: maquinaId,
+      reserva_id: { not: exceto },
+      status: { notIn: ["CANCELADA", "CONCLUIDA"] },
+      data_inicio: { lte: agora },
+      data_fim: { gt: agora },
+    },
+  });
+  return Boolean(outra);
+}
+
 // Avisa só o dono da lavanderia da máquina, não todos os admins
 export async function notificarProprietario(maquinaId: number, mensagem: string, db: Pick<typeof prisma, "maquina" | "notificacao"> = prisma) {
   const proprietarioId = await proprietarioDaMaquina(maquinaId, db);

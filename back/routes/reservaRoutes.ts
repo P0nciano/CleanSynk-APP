@@ -10,6 +10,7 @@ const reservaController = new ReservaController();
 
 reservaRoutes.get("/", autenticaAdmin, reservaController.findAll);
 reservaRoutes.get("/usuario/:usuarioId", reservaController.findByUsuario);
+reservaRoutes.get("/ocupacao/:lavanderiaId", reservaController.ocupacao);
 reservaRoutes.get("/:id", reservaController.findById);
 
 reservaRoutes.post("/", reservaController.create);

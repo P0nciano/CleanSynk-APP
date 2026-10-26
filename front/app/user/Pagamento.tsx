@@ -7,11 +7,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { cancelarReserva, criarCheckout, criarPaymentIntent, criarReserva, getPrograma } from 'src/lib/api';
 import { useAuth } from 'src/context/auth';
 import CabecalhoTela from 'src/components/CabecalhoTela';
+import { hhmm } from 'src/lib/agenda';
 
 export default function Pagamento() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<any>();
-  const { lavanderia, maquina, programa, valor } = route.params;
+  const { lavanderia, maquina, programa, valor, inicio } = route.params;
+  // Sem inicio = começa agora; com inicio = agendada para mais tarde hoje
+  const agendada = inicio ? new Date(inicio) : null;
   const { user, token } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
@@ -27,7 +30,7 @@ export default function Pagamento() {
     setLoading(true);
     let reservaId: number | null = null;
     try {
-      const agora = new Date();
+      const agora = agendada ?? new Date();
       const fim = new Date(agora.getTime() + getPrograma(programa).minutos * 60 * 1000);
 
       const reserva = await criarReserva({
@@ -62,7 +65,7 @@ export default function Pagamento() {
       const { error: paymentError } = await presentPaymentSheet();
       if (paymentError) throw new Error(paymentError.message);
 
-      navigation.navigate('StatusLavagem', { lavanderia, maquina, programa, valor: total });
+      navigation.navigate('StatusLavagem', { lavanderia, maquina, programa, valor: total, inicio });
     } catch (e) {
       if (reservaId !== null) {
         await cancelarReserva(reservaId, token).catch(() => undefined);
@@ -78,6 +81,7 @@ export default function Pagamento() {
     ['Lavanderia', lavanderia.nome],
     ['Máquina', `Máquina ${String(maquina.numero).padStart(2, '0')}`],
     ['Programa', `${getPrograma(programa).nome} · ${getPrograma(programa).minutos} min`],
+    ['Horário', agendada ? `Hoje, ${hhmm(agendada)}` : 'Agora'],
   ];
 
   return (
