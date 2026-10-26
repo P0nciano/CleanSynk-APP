@@ -10,10 +10,10 @@ export const prisma = new PrismaClient({
 // Campos do usuário que podem ir para a resposta (nunca a senha)
 export const usuarioPublico = { select: { usuario_id: true, nome: true, email: true } } as const;
 
-// Cada admin só enxerga as lavanderias de que é proprietário; cliente (sem admin) vê todas
-// Minutos para pagar uma reserva; depois disso ela é cancelada e a sessão do Stripe expira (o Stripe exige no mínimo 30)
-export const PRAZO_PAGAMENTO_MIN = 31;
+// Minutos para pagar uma reserva; depois disso ela é cancelada e a máquina volta a ficar livre
+export const PRAZO_PAGAMENTO_MIN = 10;
 
+// Cada admin só enxerga as lavanderias de que é proprietário; cliente (sem admin) vê todas
 export function lavanderiasDo(req: { admin?: { id: number } }) {
   return req.admin ? { proprietario_id: req.admin.id } : {};
 }

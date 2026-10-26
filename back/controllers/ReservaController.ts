@@ -205,7 +205,7 @@ export class ReservaController {
 
   // Libera reservas expiradas automaticamente:
   // - PAGA com o tempo do programa acabado -> CONCLUIDA
-  // - ATIVA (sem pagamento) depois de PRAZO_PAGAMENTO_MIN ou do fim do programa -> CANCELADA
+  // - sem pagamento (AGUARDANDO_PAGAMENTO/ATIVA) depois de PRAZO_PAGAMENTO_MIN ou do fim do programa -> CANCELADA
   async liberarExpiradas() {
     try {
       const agora = new Date();
@@ -214,7 +214,8 @@ export class ReservaController {
         where: {
           OR: [
             { status: "PAGA", data_fim: { lt: agora } },
-            { status: "ATIVA", OR: [{ data_inicio: { lt: limitePagamento } }, { data_fim: { lt: agora } }] },
+            // O app cria como AGUARDANDO_PAGAMENTO; ATIVA vem de reservas antigas
+            { status: { in: ["AGUARDANDO_PAGAMENTO", "ATIVA"] }, OR: [{ data_inicio: { lt: limitePagamento } }, { data_fim: { lt: agora } }] },
           ]
         },
         include: { maquina: true }

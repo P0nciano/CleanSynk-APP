@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { prisma, usuarioPublico, lavanderiasDo, PRAZO_PAGAMENTO_MIN } from "../lib/prisma";
+import { prisma, usuarioPublico, lavanderiasDo } from "../lib/prisma";
 import Stripe from "stripe";
 import { AuthRequest } from "../middlewares/autentica";
 
@@ -91,8 +91,8 @@ export class PagamentoController {
           },
         }],
         payment_intent_data: { metadata: cobranca.metadata },
-        // Mesmo prazo da reserva não paga (liberarExpiradas); 30 min é o mínimo do Stripe
-        expires_at: Math.floor(Date.now() / 1000) + PRAZO_PAGAMENTO_MIN * 60,
+        // O Stripe exige no mínimo 30 min; quem pagar depois do PRAZO_PAGAMENTO_MIN cai numa reserva cancelada e é estornado no webhook
+        expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
         success_url: `${site}/?pagamento=sucesso`,
         cancel_url: `${site}/?cancelar_reserva=${cobranca.metadata.reserva_id}`,
       });

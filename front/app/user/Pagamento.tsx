@@ -112,7 +112,7 @@ export default function Pagamento() {
 
       <View className="mx-4 mt-3 flex-row items-start">
         <Ionicons name="time-outline" size={14} color="#6b7280" style={{ marginTop: 1 }} />
-        <Text className="text-gray-500 text-xs ml-1 flex-1">A máquina fica reservada por 30 minutos enquanto você paga.</Text>
+        <Text className="text-gray-500 text-xs ml-1 flex-1">A máquina fica reservada por 10 minutos enquanto você paga.</Text>
       </View>
 
       <TouchableOpacity onPress={handlePagar} disabled={loading} className="mx-4 mt-5 bg-blue-700 rounded-2xl py-4 items-center">
